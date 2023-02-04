@@ -42,20 +42,24 @@ class InterEnv(AbstractEnv):
                 "longitudinal": True,
                 "lateral": False
             },
-            "duration": 13,  # [s]
+            "duration": 25,  # [s]
             "destination": "o1",
             "controlled_vehicles": 1,
             "initial_vehicle_count": 10,
             "spawn_probability": 0.6,
             "screen_width": 600,
             "screen_height": 600,
-            "centering_position": [0.5, 0.6],
+            "centering_position": [-0.5, 0.55],
             "scaling": 5.5 * 1.3,
             "collision_reward": -5,
             "high_speed_reward": 1,
             "arrived_reward": 1,
             "reward_speed_range": [7.0, 9.0],
-            "normalize_reward": False
+            "normalize_reward": False,
+            "show_trajectories": False,
+            "other_vehicles_type": "OTW.vehicle.controller.IDMVehicle",
+            "render_agent": True,
+            "manual_control": False
         })
         return config
 
