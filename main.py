@@ -14,6 +14,7 @@ while True:
         # Test environment
         action = env.action_type.actions_indexes["IDLE"] 
         obs, reward, done, info = env.step(action)
+        # check observation
         print(obs)
         env.render()
 
