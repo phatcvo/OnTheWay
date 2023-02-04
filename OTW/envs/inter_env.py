@@ -76,6 +76,10 @@ class InterEnv(AbstractEnv):
         reward = self.config["arrived_reward"] if self.has_arrived(vehicle) else reward
         if self.config["normalize_reward"]:
             reward = utils.lmap(reward, [self.config["collision_reward"], self.config["arrived_reward"]], [0, 1])
+
+        print('env/crashed', self.config["collision_reward"] * self.vehicle.crashed,
+              'env/speed', self.config["high_speed_reward"] * np.clip(scaled_speed, 0, 1),
+              'Total reward', reward)
         return reward
 
     def _is_terminal(self) -> bool:
@@ -99,11 +103,11 @@ class InterEnv(AbstractEnv):
         self._make_road()
         self._make_vehicles(self.config["initial_vehicle_count"])
 
-    def step(self, action: int) -> Tuple[np.ndarray, float, bool, dict]:
-        obs, reward, done, info = super().step(action)
-        self._clear_vehicles()
-        self._spawn_vehicle(spawn_probability=self.config["spawn_probability"])
-        return obs, reward, done, info
+    # def step(self, action: int) -> Tuple[np.ndarray, float, bool, dict]:
+    #     obs, reward, done, info = super().step(action)
+    #     self._clear_vehicles()
+    #     self._spawn_vehicle(spawn_probability=self.config["spawn_probability"])
+    #     return obs, reward, done, info
 
     def _make_road(self) -> None:
        # =================================================================
