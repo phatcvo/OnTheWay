@@ -132,6 +132,53 @@ class StraightLane(AbstractLane):
         lateral = np.dot(delta, self.direction_lateral)
         return float(longitudinal), float(lateral)
 
+class CircularLane(AbstractLane):
+
+    # A lane going in circle arc.
+    def __init__(self,
+                 center: Vector,
+                 radius: float,
+                 start_phase: float,
+                 end_phase: float,
+                 clockwise: bool = True,
+                 width: float = AbstractLane.DEFAULT_WIDTH,
+                 line_types: List[LineType] = None,
+                 forbidden: bool = False,
+                 speed_limit: float = 20,
+                 priority: int = 0) -> None:
+        super().__init__()
+        self.center = np.array(center)
+        self.radius = radius
+        self.start_phase = start_phase
+        self.end_phase = end_phase
+        self.direction = 1 if clockwise else -1
+        self.width = width
+        self.line_types = line_types or [LineType.STRIPED, LineType.STRIPED]
+        self.forbidden = forbidden
+        self.length = radius*(end_phase - start_phase) * self.direction
+        self.priority = priority
+        self.speed_limit = speed_limit
+
+    def position(self, longitudinal: float, lateral: float) -> np.ndarray:
+        phi = self.direction * longitudinal / self.radius + self.start_phase
+        return self.center + (self.radius - lateral * self.direction)*np.array([np.cos(phi), np.sin(phi)])
+
+    def heading_at(self, longitudinal: float) -> float:
+        phi = self.direction * longitudinal / self.radius + self.start_phase
+        psi = phi + np.pi/2 * self.direction
+        return psi
+
+    def width_at(self, longitudinal: float) -> float:
+        return self.width
+
+    def local_coordinates(self, position: np.ndarray) -> Tuple[float, float]:
+        delta = position - self.center
+        phi = np.arctan2(delta[1], delta[0])
+        phi = self.start_phase + wrap_to_pi(phi - self.start_phase)
+        r = np.linalg.norm(delta)
+        longitudinal = self.direction*(phi - self.start_phase)*self.radius
+        lateral = self.direction*(self.radius - r)
+        return longitudinal, lateral
 # =================================================================
 class RoadNetwork(object):
     graph: Dict[str, Dict[str, List[AbstractLane]]]
