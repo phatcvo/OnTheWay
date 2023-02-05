@@ -16,7 +16,7 @@ while True:
         action = env.action_type.actions_indexes["IDLE"] 
         obs, reward, done, info = env.step(action)
         
-        # print(obs)
+        print(obs)
         env.render()
 
 
