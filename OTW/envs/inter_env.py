@@ -110,19 +110,15 @@ class InterEnv(AbstractEnv):
     #     return obs, reward, done, info
 
     def _make_road(self) -> None:
-       # =================================================================
+        # =================================================================
         # Make an 4-way intersection.
-
         # The horizontal road has the right of way. More precisely, the levels of priority are:
         #     - 3 for horizontal straight lanes and right-turns
-        #     - 1 for vertical straight lanes and right-turns
         #     - 2 for horizontal left-turns
+        #     - 1 for vertical straight lanes and right-turns
         #     - 0 for vertical left-turns
-
         # The code for nodes in the road network is:
         # (o:outer | i:inner + [r:right, l:left]) + (0:south | 1:west | 2:north | 3:east)
-
-        # :return: the intersection road
         # =================================================================
         lane_width = AbstractLane.DEFAULT_WIDTH
         right_turn_radius = lane_width + 5  # [m}
@@ -167,8 +163,6 @@ class InterEnv(AbstractEnv):
         self.road = road
 
     def _make_vehicles(self, n_vehicles: int = 10) -> None:
-        # Populate a road with several vehicles on the highway and on the merging lane
-        # :return: the ego-vehicle
 
         # Configure vehicles
         vehicle_type = utils.class_from_path(self.config["other_vehicles_type"])
