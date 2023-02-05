@@ -4,7 +4,6 @@ import pprint
 
 # Create environment
 # env = gym.make("street-v1")
-
 env = gym.make("inter-v1")
 env.reset()
 pprint.pprint(env.config)
