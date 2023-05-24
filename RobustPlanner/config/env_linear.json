@@ -1,0 +1,9 @@
+{
+    "id": "street-v1",
+    "import_module": "street_env",
+    "lanes_count": 3,
+    "vehicles_count": 20,
+    "duration": 20,
+    "other_vehicles_type": "OTW.vehicle.behavior.LinearVehicle",
+    "centering_position": [-1.2, 0.3]
+}

@@ -14,8 +14,8 @@ if TYPE_CHECKING:
 pygame.init()
 
 class VehicleGraphics(object):
-
     # Display a vehicle on a pygame surface. The vehicle is represented as a colored rotated rectangle.
+
     @classmethod
     def display(cls, vehicle: Vehicle, surface: "WorldSurface", # the surface to draw the vehicle on
                 transparent: bool = False,                  # whether the vehicle should be drawn slightly transparent
@@ -38,16 +38,17 @@ class VehicleGraphics(object):
 
 
         # Centered rotation
-        h = v.heading if abs(v.heading) > 2 * np.pi / 180 else 0
+        h = v.heading if abs(v.heading) > 2 * np.pi / 180 else 0 # heading clipping
         position = [*surface.pos2pix(v.position[1], v.position[0])]
         if not offscreen:
             # convert_alpha throws errors in offscreen mode
+            # convert_alpha throws errors in offscreen mode
             vehicle_surface = pygame.Surface.convert_alpha(vehicle_surface)
-        cls.blit_rotate(surface, vehicle_surface, position, np.rad2deg(-h))
+        cls.blit_rotate(surface, vehicle_surface, position, np.rad2deg(-h)) #This line draws car moving
 
         # Label
         speed = round(vehicle.speed, 1)
-        steering_angle = round(vehicle.steering_control(vehicle.target_lane_index) * 57.2957795, 1)
+        steering_angle = round(vehicle.steering_control(vehicle.target_lane_index)* 57.2957795, 1)
         if label:
             font = pygame.font.Font(None, 15)
             # text = "#{}".format(id(v) % 1000)
@@ -86,5 +87,20 @@ class VehicleGraphics(object):
         if show_rect:
             pygame.draw.rect(surf, (255, 0, 0), (*origin, *rotated_image.get_size()), 2)
 
+    @classmethod
+    def display_history(cls, v: Vehicle, surface: "WorldSurface", simulation: int, offscreen: bool) -> None:
+        #display history trajectory for each agent
+        color = (255,0,0)
+        closed = False
 
+        histories = v.history
+        #draw history, if exists.
+        if len(histories) < 2:
+            return
+
+        history_points = []
+        for history in histories:
+            history_points.append((surface.pos2pix(history.position[1], history.position[0])))
+
+        pygame.draw.lines(surface, color, closed, history_points)
 
