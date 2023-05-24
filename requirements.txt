@@ -1,0 +1,9 @@
+torch
+gym==0.21.0
+pandas==1.5.3
+matplotlib
+pygame
+tensorboard
+scipy
+control
+numpy==1.23.5
