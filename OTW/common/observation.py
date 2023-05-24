@@ -4,6 +4,7 @@ from functools import partial
 from gym import spaces
 import numpy as np
 import pandas as pd
+from collections import OrderedDict
 
 from OTW.common import utils
 from OTW.road.road import AbstractLane
@@ -117,11 +118,65 @@ class KinematicObservation(ObservationType):
         # Flatten
         return obs.astype(self.space().dtype)
 
+class KinematicsGoalObservation(KinematicObservation):
+    def __init__(self, env: 'AbstractEnv', scales: List[float], **kwargs: dict) -> None:
+        self.scales = np.array(scales)
+        super().__init__(env, **kwargs)
 
+    def space(self) -> spaces.Space:
+        try:
+            obs = self.observe()
+            return spaces.Dict(dict(
+                desired_goal=spaces.Box(-np.inf, np.inf, shape=obs["desired_goal"].shape, dtype=np.float64),
+                achieved_goal=spaces.Box(-np.inf, np.inf, shape=obs["achieved_goal"].shape, dtype=np.float64),
+                observation=spaces.Box(-np.inf, np.inf, shape=obs["observation"].shape, dtype=np.float64),
+            ))
+        except AttributeError:
+            return spaces.Space()
+
+    def observe(self) -> Dict[str, np.ndarray]:
+        if not self.observer_vehicle:
+            return OrderedDict([
+                ("observation", np.zeros((len(self.features),))),
+                ("achieved_goal", np.zeros((len(self.features),))),
+                ("desired_goal", np.zeros((len(self.features),)))
+            ])
+
+        obs = np.ravel(pd.DataFrame.from_records([self.observer_vehicle.to_dict()])[self.features])
+        goal = np.ravel(pd.DataFrame.from_records([self.env.goal.to_dict()])[self.features])
+        obs = OrderedDict([
+            ("observation", obs / self.scales),
+            ("achieved_goal", obs / self.scales),
+            ("desired_goal", goal / self.scales)
+         ])
+        return obs
+    
+class MultiAgentObservation(ObservationType):
+    def __init__(self,
+                 env: 'AbstractEnv',
+                 observation_config: dict,
+                 **kwargs) -> None:
+        super().__init__(env)
+        self.observation_config = observation_config
+        self.agents_observation_types = []
+        for vehicle in self.env.controlled_vehicles:
+            obs_type = observation_factory(self.env, self.observation_config)
+            obs_type.observer_vehicle = vehicle
+            self.agents_observation_types.append(obs_type)
+
+    def space(self) -> spaces.Space:
+        return spaces.Tuple([obs_type.space() for obs_type in self.agents_observation_types])
+
+    def observe(self) -> tuple:
+        return tuple(obs_type.observe() for obs_type in self.agents_observation_types)
 
 
 def observation_factory(env: 'abstract.AbstractEnv', config: dict) -> ObservationType:
     if config["type"] == "Kinematics":
         return KinematicObservation(env, **config)
+    elif config["type"] == "KinematicsGoal":
+        return KinematicsGoalObservation(env, **config)
+    elif config["type"] == "MultiAgentObservation":
+        return MultiAgentObservation(env, **config)
     else:
         raise ValueError("Unknown observation type")

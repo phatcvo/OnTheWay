@@ -75,6 +75,7 @@ class AbstractEnv(gym.Env):
             "policy_frequency": 1,  # [Hz]
             "offscreen_rendering": os.environ.get("OFFSCREEN_RENDERING", "0") == "1",
             "real_time_rendering": False,
+            "manual_control": False
         }
 
     def seed(self, seed: int = None) -> List[int]:
@@ -103,7 +104,8 @@ class AbstractEnv(gym.Env):
 
     # Check whether the current state is a terminal state
     def _is_terminal(self) -> bool:
-        raise NotImplementedError # is the state terminal
+        pass
+        # raise NotImplementedError # is the state terminal
 
     # Return a dictionary of additional information
     def _info(self, obs: Observation, action: Action) -> dict: # current observation
