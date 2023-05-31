@@ -82,10 +82,10 @@ class StreetEnv(abstract.AbstractEnv):
                                      + self.config["right_lane_reward"]], [0, 1])
         reward = 0 if not self.vehicle.on_road else reward
 
-        print('env/crashed', self.config["collision_reward"] * self.vehicle.crashed,
-              'env/lane:', self.config["right_lane_reward"] * lane / max(len(neighbors) - 1, 1),
-              'env/speed', self.config["high_speed_reward"] * np.clip(scaled_speed, 0, 1),
-              'Total reward', reward)
+        # print('env/crashed', self.config["collision_reward"] * self.vehicle.crashed,
+        #       'env/lane:', self.config["right_lane_reward"] * lane / max(len(neighbors) - 1, 1),
+        #       'env/speed', self.config["high_speed_reward"] * np.clip(scaled_speed, 0, 1),
+        #       'Total reward', reward)
 
         return reward # the corresponding reward
 

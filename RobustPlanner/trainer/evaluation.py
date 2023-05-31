@@ -18,7 +18,7 @@ from pathlib import Path
 from tensorboardX import SummaryWriter
 from gym.wrappers import RecordVideo, RecordEpisodeStatistics, capped_cubic_video_schedule
 
-import RobustPlanner
+# import RobustPlanner
 from RobustPlanner.common import factory, graphics, configuration, memory, utils
 # from RobustPlanner.common.graphics import AgentGraphics
 # from RobustPlanner.common.configuration import serialize

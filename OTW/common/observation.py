@@ -67,7 +67,8 @@ class KinematicObservation(ObservationType):
         return spaces.Box(shape=(self.vehicles_count, len(self.features)), low=-np.inf, high=np.inf, dtype=np.float32)
 
     # Normalize the observation values. For now, assume that the road is straight along the x axis.
-    def normalize_obs(self, df: pd.DataFrame) -> pd.DataFrame: # Dataframe df: observation data
+    # def normalize_obs(self, df: pd.DataFrame) -> pd.DataFrame: # Dataframe df: observation data
+    def normalize_obs(self, df: pd.concat) -> pd.concat: # Dataframe df: observation data
         if not self.features_range:
             side_lanes = self.env.road.network.all_side_lanes(self.observer_vehicle.lane_index)
             self.features_range = {
@@ -89,6 +90,7 @@ class KinematicObservation(ObservationType):
             return np.zeros(self.space().shape)
 
         # Add ego-vehicle
+        # df = pd.DataFrame.from_records([self.observer_vehicle.to_dict()])[self.features]
         df = pd.DataFrame.from_records([self.observer_vehicle.to_dict()])[self.features]
         # print('ego-vehicle', df)
         # Add nearby traffic
@@ -100,6 +102,7 @@ class KinematicObservation(ObservationType):
         if close_vehicles:
             origin = self.observer_vehicle if not self.absolute else None
             df = df.append(pd.DataFrame.from_records(
+            # df = df.concat(pd.DataFrame.from_records(
                 [v.to_dict(origin, observe_intentions=self.observe_intentions)
                  for v in close_vehicles[-self.vehicles_count + 1:]])[self.features],
                            ignore_index=True)

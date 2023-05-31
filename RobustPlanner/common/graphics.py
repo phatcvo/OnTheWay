@@ -11,21 +11,11 @@ from RobustPlanner import agents
 # from RobustPlanner.agents.tree_search.abstract import AbstractTreeSearchAgent
 # from RobustPlanner.agents.tree_search.graphics import TreeGraphics
 
-
+# Graphical visualization of any Agent implementing AbstractAgent.
 class AgentGraphics(object):
-    """
-        Graphical visualization of any Agent implementing AbstractAgent.
-    """
-    @classmethod
-    def display(cls, agent, agent_surface, sim_surface=None):
-        """
-        Display an agent visualization on a pygame surface.
 
-        :param agent: the agent to be displayed
-        :param agent_surface: the pygame surface on which the agent is displayed
-        :param sim_surface: the pygame surface on which the environment is displayed
-        """
-        
+    @classmethod
+    def display(cls, agent, agent_surface, sim_surface=None):        
         if isinstance(agent, agents.robust.robust.IntervalRobustPlannerAgent):
             agents.robust.graphics.robust_graphics.IntervalRobustPlannerGraphics.display(agent, agent_surface, sim_surface)
         elif isinstance(agent, agents.robust.robust.DiscreteRobustPlannerAgent):

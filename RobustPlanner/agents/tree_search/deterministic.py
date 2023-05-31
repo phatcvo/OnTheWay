@@ -1,14 +1,16 @@
 import numpy as np
 import logging
+from RobustPlanner import common
 
-from RobustPlanner import common, agents
-# from RobustPlanner.common.factory import safe_deepcopy_env
-# from RobustPlanner.agents.tree_search.abstract import Node, AbstractTreeSearchAgent, AbstractPlanner
+# from RobustPlanner import common, agents
+
+from RobustPlanner.common.factory import safe_deepcopy_env
+from RobustPlanner.agents.tree_search.abstract import Node, AbstractTreeSearchAgent, AbstractPlanner
 
 logger = logging.getLogger(__name__)
 
 
-class DeterministicNode(agents.tree_search.abstract.Node):
+class DeterministicNode(Node):
     def __init__(self, parent, planner, state=None, depth=0):
         super().__init__(parent, planner)
         self.state = state
@@ -37,7 +39,8 @@ class DeterministicNode(agents.tree_search.abstract.Node):
             actions = range(self.state.action_space.n)
         for action in actions:
             self.children[action] = type(self)(self, self.planner, state = common.factory.safe_deepcopy_env(self.state), depth=self.depth + 1)
-            observation, reward, done, truncated, info = self.planner.step(self.children[action].state, action)
+            # observation, reward, done, truncated, info = self.planner.step(self.children[action].state, action)
+            observation, reward, done, _ = self.planner.step(self.children[action].state, action)
             self.planner.leaves.append(self.children[action])
             self.children[action].update(reward, done, observation)
 
@@ -85,7 +88,7 @@ class DeterministicNode(agents.tree_search.abstract.Node):
         return self.value_upper
 
 # An implementation of Optimistic Planning in Deterministic MDPs.
-class OptimisticDeterministicPlanner(agents.tree_search.abstract.AbstractPlanner):
+class OptimisticDeterministicPlanner(AbstractPlanner):
     NODE_TYPE = DeterministicNode
     def __init__(self, env, config=None):
         super(OptimisticDeterministicPlanner, self).__init__(config)
@@ -123,5 +126,5 @@ class OptimisticDeterministicPlanner(agents.tree_search.abstract.AbstractPlanner
         self.root.backup_values()
 
 # An agent that performs optimistic planning in deterministic MDPs.
-class DeterministicPlannerAgent(agents.tree_search.abstract.AbstractTreeSearchAgent):
+class DeterministicPlannerAgent(AbstractTreeSearchAgent):
     PLANNER_TYPE = OptimisticDeterministicPlanner

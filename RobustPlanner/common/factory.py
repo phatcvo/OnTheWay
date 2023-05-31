@@ -3,38 +3,26 @@ import importlib
 import json
 import logging
 import gym
-
+import importlib
 from RobustPlanner.common.configuration import Configurable
 
 logger = logging.getLogger(__name__)
 
-
+# Handles creation of agents.
 def agent_factory(environment, config):
-    """
-        Handles creation of agents.
+    #configuration of the agent, must contain a '__class__' key
 
-    :param environment: the environment
-    :param config: configuration of the agent, must contain a '__class__' key
-    :return: a new agent
-    """
     if "__class__" in config:
         path = config['__class__'].split("'")[1]
         module_name, class_name = path.rsplit(".", 1)
         agent_class = getattr(importlib.import_module(module_name), class_name)
         agent = agent_class(environment, config)
-        return agent
+        return agent # a new agent
     else:
         raise ValueError("The configuration should specify the agent __class__")
 
 
 def load_agent(agent_config, env):
-    """
-        Load an agent from a configuration file.
-
-    :param agent_config: dict or the path to the agent configuration file
-    :param env: the environment with which the agent interacts
-    :return: the agent
-    """
     # Load config from file
     if not isinstance(agent_config, dict):
         agent_config = load_agent_config(agent_config)
@@ -42,11 +30,7 @@ def load_agent(agent_config, env):
 
 
 def load_agent_config(config_path):
-    """
-        Load an agent configuration from file, with inheritance.
-    :param config_path: path to a json config file
-    :return: the configuration dict
-    """
+
     with open(config_path) as f:
         agent_config = json.loads(f.read())
     if "base_config" in agent_config:
@@ -57,12 +41,6 @@ def load_agent_config(config_path):
 
 
 def load_environment(env_config):
-    """
-        Load an environment from a configuration file.
-
-    :param env_config: the configuration, or path to the environment configuration file
-    :return: the environment
-    """
     # Load the environment config from file
     if not isinstance(env_config, dict):
         with open(env_config) as f:
@@ -71,6 +49,7 @@ def load_environment(env_config):
     # Make the environment
     if env_config.get("import_module", None):
         __import__(env_config["import_module"])
+        # importlib.import_module(env_config["import_module"])
     try:
         env = gym.make(env_config['id'])
         # Save env module in order to be able to import it again
@@ -81,8 +60,7 @@ def load_environment(env_config):
         # The environment is unregistered.
         print("import_module", env_config["import_module"])
         raise gym.error.UnregisteredEnv('Environment {} not registered. The environment module should be specified by '
-                                        'the "import_module" key of the environment configuration'.format(
-                                            env_config['id']))
+                                        'the "import_module" key of the environment configuration'.format(env_config['id']))
 
     # Configure the environment, if supported
     try:
@@ -93,14 +71,9 @@ def load_environment(env_config):
         logger.info("This environment does not support configuration. {}".format(e))
     return env
 
-
+# Apply a series of pre-processes to an environment, before it is used by an agent.
 def preprocess_env(env, preprocessor_configs):
-    """
-        Apply a series of pre-processes to an environment, before it is used by an agent.
-    :param env: an environment
-    :param preprocessor_configs: a list of preprocessor configs
-    :return: a preprocessed copy of the environment
-    """
+    
     for preprocessor_config in preprocessor_configs:
         if "method" in preprocessor_config:
             try:
@@ -115,11 +88,9 @@ def preprocess_env(env, preprocessor_configs):
             logger.error("The method is not specified in ", preprocessor_config)
     return env
 
-
+# Perform a deep copy of an environment but without copying its viewer.
 def safe_deepcopy_env(obj):
-    """
-        Perform a deep copy of an environment but without copying its viewer.
-    """
+    
     cls = obj.__class__
     result = cls.__new__(cls)
     memo = {id(obj): result}
