@@ -14,13 +14,14 @@ from collections import namedtuple
 # Visualization
 import matplotlib
 import matplotlib.pyplot as plt
+import tqdm
 from tqdm.notebook import trange
 
 # Create environment
 # env = gym.make("street-v1")
-# env = gym.make("inter-v1")
+env = gym.make("inter-v1")
 # env = gym.make("Troad-v1")
-env = gym.make("park-v1")
+# env = gym.make("park-v1")
 env.reset()
 pprint.pprint(env.config)
 

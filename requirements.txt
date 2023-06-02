@@ -7,3 +7,7 @@ tensorboard
 scipy
 control
 numpy==1.23.5
+tqdm
+seaborn
+tensorboardX
+numba
