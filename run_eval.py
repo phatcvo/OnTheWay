@@ -34,7 +34,7 @@ from pathlib import Path
 # from tensorboardX import SummaryWriter
 from gym.wrappers import RecordVideo, RecordEpisodeStatistics, capped_cubic_video_schedule
 import sys
-sys.path.append('/home/rml-phat/Documents/OTW-RML')
+# sys.path.append('/home/rml-phat/Documents/OTW-RML')
 # from rl_agents.agents.common.graphics import AgentGraphics
 # from rl_agents.trainer.graphics import RewardViewer
 # from rl_agents.configuration import Configurable
@@ -348,8 +348,8 @@ def main():
     repeat_count = 5  # Set the number of repetitions
     test_mode = True  # Set to True if you want to perform testing
 
-    environment_config = "/home/rml-phat/Documents/OTW-RML/RobustPlanner/config/env_linear.json"
-    agent_config = "/home/rml-phat/Documents/OTW-RML/RobustPlanner/config/baseline.json"
+    environment_config = "/home/rml-phat/Documents/RML-Work/OTW-RML/RobustPlanner/config/env_linear.json"
+    agent_config = "/home/rml-phat/Documents/RML-Work/OTW-RML/RobustPlanner/config/baseline.json"
     print("Start to test")
     evaluate(environment_config, agent_config, repeat_count, test_mode)
 
