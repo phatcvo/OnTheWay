@@ -1,0 +1,15 @@
+{
+    "__class__": "<class 'RobustPlanner.agents.robust.robust.IntervalRobustPlannerAgent'>",
+    "env_preprocessors":
+    [
+        {
+            "method": "simplify"
+        },
+        {
+            "method": "change_vehicles",
+            "args": "OTW.vehicle.prediction.IntervalVehicle"
+        }
+    ],
+    "sub_agent_path": "/home/rml-phat/Documents/OTW-RML/RobustPlanner/config/opd.json",
+    "enable_robust_planning": true
+}
