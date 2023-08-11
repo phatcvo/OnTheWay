@@ -350,7 +350,7 @@ def main():
 
     environment_config = "/home/rml-phat/Documents/RML-Work/OTW-RML/RobustPlanner/config/env_linear.json"
     agent_config = "/home/rml-phat/Documents/RML-Work/OTW-RML/RobustPlanner/config/baseline.json"
-    print("Start to test")
+    print("Start to test >>>>>")
     evaluate(environment_config, agent_config, repeat_count, test_mode)
 
 def evaluate(environment_config, agent_config, repeat_count, test):
