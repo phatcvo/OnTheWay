@@ -24,9 +24,7 @@ class EnvViewer(object):
         pygame.display.set_caption("OTW-RML")
         panel_size = (self.config["screen_width"], self.config["screen_height"])
 
-        # A display is not mandatory to draw things. Ignoring the display.set_mode()
-        # instruction allows the drawing to be done on surfaces without
-        # handling a screen display, useful for e.g. cloud computing
+        # A display is not mandatory to draw things. Ignoring the display.set_mode() instruction allows the drawing to be done on surfaces without handling a screen display, useful for e.g. cloud computing
         if not self.offscreen:
             self.screen = pygame.display.set_mode([self.config["screen_width"], self.config["screen_height"]])
 
@@ -83,7 +81,7 @@ class EnvViewer(object):
 
         if self.vehicle_trajectory:
             VehicleGraphics.display_trajectory(self.vehicle_trajectory, self.sim_surface, offscreen=self.offscreen)
-        RoadGraphics.display_road_objects(self.env.road, self.sim_surface, offscreen=self.offscreen)
+        # RoadGraphics.display_road_objects(self.env.road, self.sim_surface, offscreen=self.offscreen)
 
         if self.agent_display:
             self.agent_display(self.agent_surface, self.sim_surface)
@@ -104,13 +102,9 @@ class EnvViewer(object):
         if self.SAVE_IMAGES and self.directory:
             pygame.image.save(self.sim_surface, str(self.directory / "OTW-env_{}.png".format(self.frame)))
             self.frame += 1
-
+            
+    # The rendered image as a rgb array. OpenAI gym's channel convention is H x W x C
     def get_image(self) -> np.ndarray:
-        """
-        The rendered image as a rgb array.
-
-        OpenAI gym's channel convention is H x W x C
-        """
         surface = self.screen if self.config["render_agent"] and not self.offscreen else self.sim_surface
         data = pygame.surfarray.array3d(surface)  # in W x H x C channel convention
         return np.moveaxis(data, 0, 1)

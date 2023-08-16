@@ -22,6 +22,7 @@ def agent_factory(environment, config):
         path = config['__class__'].split("'")[1]
         module_name, class_name = path.rsplit(".", 1)
         agent_class = getattr(importlib.import_module(module_name), class_name)
+        print(agent_class)
         agent = agent_class(environment, config)
         return agent
     else:

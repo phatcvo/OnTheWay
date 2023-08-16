@@ -3,6 +3,7 @@ from typing import List, Tuple, TYPE_CHECKING
 
 import numpy as np
 import pygame
+from matplotlib import cm as cm
 
 from OTW.common.utils import Vector
 from OTW.vehicle.kinematics import Vehicle
@@ -13,9 +14,22 @@ if TYPE_CHECKING:
 
 pygame.init()
 
+# Display a vehicle on a pygame surface. The vehicle is represented as a colored rotated rectangle.
 class VehicleGraphics(object):
-    # Display a vehicle on a pygame surface. The vehicle is represented as a colored rotated rectangle.
-
+    
+    RED = (255, 100, 100)
+    GREEN = (50, 200, 0)
+    BLUE = (100, 200, 255)
+    YELLOW = (200, 200, 0)
+    BLACK = (60, 60, 60)
+    PURPLE = (200, 0, 150)
+    DEFAULT_COLOR = YELLOW
+    EGO_COLOR = GREEN
+    UNCERTAINTY_TIME_COLORMAP = cm.bwr
+    MODEL_TRAJ_COLOR = (148, 173, 215)
+    EGO_TRAJ_COLOR = (90, 150, 227)
+    TRANSPARENCY = 100
+    
     @classmethod
     def display(cls, vehicle: Vehicle, surface: "WorldSurface", # the surface to draw the vehicle on
                 transparent: bool = False,                  # whether the vehicle should be drawn slightly transparent
@@ -23,11 +37,8 @@ class VehicleGraphics(object):
                 label: bool = True,                        # whether a text label should be rendered
                 draw_roof: bool = False) -> None:
 
-
         if not surface.is_visible(vehicle.position):
             return
-
-        v = vehicle
 
         if vehicle.crashed:
             vehicle_surface = pygame.image.load('OTW/vehicle/Image/RedCar1.png')
@@ -38,26 +49,22 @@ class VehicleGraphics(object):
 
 
         # Centered rotation
-        h = v.heading if abs(v.heading) > 2 * np.pi / 180 else 0 # heading clipping
-        position = [*surface.pos2pix(v.position[1], v.position[0])]
+        head = vehicle.heading if abs(vehicle.heading) > 2 * np.pi / 180 else 0 # heading clipping
+        position = [*surface.pos2pix(vehicle.position[1], vehicle.position[0])]
         if not offscreen:
             # convert_alpha throws errors in offscreen mode
-            # convert_alpha throws errors in offscreen mode
             vehicle_surface = pygame.Surface.convert_alpha(vehicle_surface)
-        cls.blit_rotate(surface, vehicle_surface, position, np.rad2deg(-h)) #This line draws car moving
+        cls.blit_rotate(surface, vehicle_surface, position, np.rad2deg(-head)) #This line draws car moving
 
         # Label
         speed = round(vehicle.speed, 1)
         steering_angle = round(vehicle.steering_control(vehicle.target_lane_index)* 57.2957795, 1)
         if label:
-            font = pygame.font.Font(None, 15)
-            # text = "#{}".format(id(v) % 1000)
-            # int vel = ControlledVehicle.velocity
+            font = pygame.font.Font(None, 20)
             text = "{} m/s, {} deg".format(speed, steering_angle)
             text = font.render(text, 1, (10, 10, 10), (255, 255, 255))
             surface.blit(text, [10, position[1]])
-            # surface.blit(text, position)
-        # print("speed {:0.03f}".format(speed))
+
       
 
     @staticmethod
@@ -87,84 +94,36 @@ class VehicleGraphics(object):
         if show_rect:
             pygame.draw.rect(surf, (255, 0, 0), (*origin, *rotated_image.get_size()), 2)
 
-    # @classmethod
-    # def display_trajectory(cls, trajectory, surface, sim_surface, color):
-    #     import pygame
-    #     color = (color[0], color[1], color[2], cls.TRANSPARENCY)
-    #     pos = lambda x: getattr(x, "position", x)
-    #     # line of subv
-    #     for i in range(len(trajectory)-1):
-    #         pygame.draw.line(surface, color, sim_surface.vec2pix(pos(trajectory[i])), sim_surface.vec2pix(pos(trajectory[i+1])), 3)
-    @classmethod
-    def display_trajectory(cls, states: List[Vehicle], surface: "WorldSurface", offscreen: bool = False) -> None:
-        """
-        Display the whole trajectory of a vehicle on a pygame surface.
 
-        :param states: the list of vehicle states within the trajectory to be displayed
-        :param surface: the surface to draw the vehicle future states on
-        :param offscreen: whether the rendering should be done offscreen or not
-        """
-        # for vehicle in states: cls.display(vehicle, surface, transparent=True, offscreen=offscreen)
-        state_points = []
-        #display history trajectory for each agent
-        color = (51, 102, 255)
+    @classmethod #display trajectory for each agent
+    def display_trajectory(cls, states: List[Vehicle], surface: "WorldSurface", offscreen: bool = False) -> None:
+        state_points = [] 
+
         closed = False
         for vehicle in states:
             # cls.display(vehicle, surface, transparent=True, offscreen=offscreen)
             state_points.append(surface.pos2pix(vehicle.position[1], vehicle.position[0]))
             # cls.display(state_points, surface, transparent=True, offscreen=offscreen)
-        print("color line1",state_points[0:8])
+        print("Horizon steps: ", len(state_points))
 
-        pygame.draw.lines(surface, color, closed, state_points[0:8], width = 5)
+        pygame.draw.lines(surface, cls.EGO_TRAJ_COLOR, closed, state_points[0:15], width = 15)
+        
     
-    @classmethod
-    def display_history(cls, v: Vehicle, surface: "WorldSurface", simulation: int, offscreen: bool) -> None:
-        #display history trajectory for each agent
-        color = (255,0,0)
+    @classmethod #display history trajectory for each agent
+    def display_history(cls, v: Vehicle, surface: "WorldSurface", frequency: float = 3, duration: float = 2, simulation: int = 15, offscreen: bool = False) -> None:
+        
         closed = False
 
+        for v in itertools.islice(v.history, None, int(simulation * duration), int(simulation / v)):
+            cls.display(v, surface, transparent=True, offscreen=offscreen)
+            
         histories = v.history
-        #draw history, if exists.
+        
         if len(histories) < 2:
             return
 
         history_points = []
         for history in histories:
             history_points.append((surface.pos2pix(history.position[1], history.position[0])))
-
-        pygame.draw.lines(surface, color, closed, history_points)
-
-    @classmethod
-    def display_uncertainty(cls, robust_env, plan, surface, trajectory=True):
-        import pygame
-        horizon = 1
-        for vehicle in robust_env.road.vehicles:
-            vehicle.COLLISIONS_ENABLED = False
-        if plan:
-            plan = plan[1:]  # First action has already been performed
-        plan = plan[:horizon] + (horizon - len(plan)) * [1]
-        for action in plan:
-            robust_env.step(action)
-        for vehicle in robust_env.road.vehicles:
-            if not hasattr(vehicle, 'interval_trajectory'):
-                continue
-            min_traj = [o.position[0].clip(vehicle.position - 100, vehicle.position + 100) for o in vehicle.interval_trajectory]
-            max_traj = [o.position[1].clip(vehicle.position - 100, vehicle.position + 100) for o in vehicle.interval_trajectory]
-            uncertainty_surface = pygame.Surface(surface.get_size(), pygame.SRCALPHA, 32)
-            cls.display_traj_uncertainty(min_traj, max_traj, uncertainty_surface, surface, cls.UNCERTAINTY_TIME_COLORMAP)
-            if trajectory:
-                cls.display_trajectory(vehicle.trajectory, uncertainty_surface, surface, cls.MODEL_TRAJ_COLOR)
-            surface.blit(uncertainty_surface, (0, 0))
-
-       
-        
-        # histories = states.history
-
-        # if len(histories) < 2:
-        #     return
-
-        # states_points = []
-        # for history in histories:
-        #     history_points.append((surface.pos2pix(history.position[1], history.position[0])))
-
-        # pygame.draw.lines(surface, color, closed, history_points)
+        #draw history, if exists.
+        pygame.draw.lines(surface, cls.BLUE, closed, history_points)

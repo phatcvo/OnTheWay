@@ -31,6 +31,7 @@ class DiscreteRobustPlanner(OptimisticDeterministicPlanner):
 
     # Run an OptimisticDeterministicPlanner episode
     def run(self):
+        print ("Running OptimisticDeterministicPlanner")
         leaf_to_expand = max(self.leaves, key=lambda n: n.get_value_upper_bound())
         leaf_to_expand.expand()
         leaf_to_expand.backup_to_root()

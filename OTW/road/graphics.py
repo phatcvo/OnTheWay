@@ -135,10 +135,7 @@ class LaneGraphics(object):
         ends = np.clip(ends, 0, lane.length)
         for k, _ in enumerate(starts):
             if abs(starts[k] - ends[k]) > 0.5 * cls.STRIPE_LENGTH:
-                pygame.draw.line(surface, surface.WHITE,
-                                 (surface.vec2pix(lane.position(starts[k], lats[k]))),
-                                 (surface.vec2pix(lane.position(ends[k], lats[k]))),
-                                 max(surface.pix(cls.STRIPE_WIDTH), 1))
+                pygame.draw.line(surface, surface.WHITE, (surface.vec2pix(lane.position(starts[k], lats[k]))), (surface.vec2pix(lane.position(ends[k], lats[k]))), max(surface.pix(cls.STRIPE_WIDTH), 1))
 
     @classmethod
     def draw_ground(cls, lane: AbstractLane, surface: WorldSurface, color: Tuple[float], width: float,
@@ -177,84 +174,84 @@ class RoadGraphics(object):
             VehicleGraphics.display(v, surface, offscreen=offscreen) # offscreen: render without displaying on a screen
 
     # Display the road objects on a surface.
-    @staticmethod
-    def display_road_objects(road: Road, surface: WorldSurface, offscreen: bool = False) -> None:
-        for o in road.objects:
-            RoadObjectGraphics.display(o, surface, offscreen=offscreen)
+    # @staticmethod
+    # def display_road_objects(road: Road, surface: WorldSurface, offscreen: bool = True) -> None:
+    #     for o in road.objects:
+    #         RoadObjectGraphics.display(o, surface, offscreen=offscreen)
 
-# A visualization of objects on the road.
-class RoadObjectGraphics:
-    YELLOW = (200, 200, 0)
-    BLUE = (100, 200, 255)
-    RED = (255, 100, 100)
-    GREEN = (50, 200, 0)
-    BLACK = (60, 60, 60)
-    DEFAULT_COLOR = YELLOW
+# # A visualization of objects on the road.
+# class RoadObjectGraphics:
+#     YELLOW = (200, 200, 0)
+#     BLUE = (100, 200, 255)
+#     RED = (255, 100, 100)
+#     GREEN = (50, 200, 0)
+#     BLACK = (60, 60, 60)
+#     DEFAULT_COLOR = YELLOW
+    
+#     # Display a road objects on a pygame surface. The objects is represented as a colored rotated rectangle
+#     @classmethod
+#     def display(cls, object_: 'RoadObject', surface: WorldSurface, transparent: bool = False,
+#                 offscreen: bool = False):
+#         o = object_ # the vehicle to be drawn
+#         s = pygame.Surface((surface.pix(o.LENGTH), surface.pix(o.LENGTH)), pygame.SRCALPHA)  # per-pixel alpha
+#         rect = (0, surface.pix(o.WIDTH) / 2 - surface.pix(o.WIDTH) / 2, surface.pix(o.LENGTH), surface.pix(o.WIDTH))
+#         pygame.draw.rect(s, cls.get_color(o, transparent), rect, 0)
+#         pygame.draw.rect(s, cls.BLACK, rect, 1)
+#         # convert_alpha throws errors in offscreen mode TODO() Explain why
+#         if not offscreen:
+#             s = pygame.Surface.convert_alpha(s)
+#         h = o.heading if abs(o.heading) > 2 * np.pi / 180 else 0
+#         # Centered rotation
+#         position = (surface.pos2pix(o.position[1], o.position[0]))
+#         cls.blit_rotate(surface, s, position, np.rad2deg(-h))
 
-    # Display a road objects on a pygame surface. The objects is represented as a colored rotated rectangle
-    @classmethod
-    def display(cls, object_: 'RoadObject', surface: WorldSurface, transparent: bool = False,
-                offscreen: bool = False):
-        o = object_ # the vehicle to be drawn
-        s = pygame.Surface((surface.pix(o.LENGTH), surface.pix(o.LENGTH)), pygame.SRCALPHA)  # per-pixel alpha
-        rect = (0, surface.pix(o.WIDTH) / 2 - surface.pix(o.WIDTH) / 2, surface.pix(o.LENGTH), surface.pix(o.WIDTH))
-        pygame.draw.rect(s, cls.get_color(o, transparent), rect, 0)
-        pygame.draw.rect(s, cls.BLACK, rect, 1)
-        # convert_alpha throws errors in offscreen mode TODO() Explain why
-        if not offscreen:
-            s = pygame.Surface.convert_alpha(s)
-        h = o.heading if abs(o.heading) > 2 * np.pi / 180 else 0
-        # Centered rotation
-        position = (surface.pos2pix(o.position[1], o.position[0]))
-        cls.blit_rotate(surface, s, position, np.rad2deg(-h))
+#     @staticmethod
+#     def blit_rotate(surf: pygame.SurfaceType, image: pygame.SurfaceType, pos: Vector, angle: float,
+#                     origin_pos: Vector = None, show_rect: bool = False) -> None:
 
-    @staticmethod
-    def blit_rotate(surf: pygame.SurfaceType, image: pygame.SurfaceType, pos: Vector, angle: float,
-                    origin_pos: Vector = None, show_rect: bool = False) -> None:
+#         w, h = image.get_size()
+#         box = [pygame.math.Vector2(p) for p in [(0, 0), (w, 0), (w, -h), (0, -h)]]
+#         box_rotate = [p.rotate(angle) for p in box]
+#         min_box = (min(box_rotate, key=lambda p: p[0])[0], min(box_rotate, key=lambda p: p[1])[1])
+#         max_box = (max(box_rotate, key=lambda p: p[0])[0], max(box_rotate, key=lambda p: p[1])[1])
 
-        w, h = image.get_size()
-        box = [pygame.math.Vector2(p) for p in [(0, 0), (w, 0), (w, -h), (0, -h)]]
-        box_rotate = [p.rotate(angle) for p in box]
-        min_box = (min(box_rotate, key=lambda p: p[0])[0], min(box_rotate, key=lambda p: p[1])[1])
-        max_box = (max(box_rotate, key=lambda p: p[0])[0], max(box_rotate, key=lambda p: p[1])[1])
+#         # calculate the translation of the pivot
+#         if origin_pos is None:
+#             origin_pos = w / 2, h / 2
+#         pivot = pygame.math.Vector2(origin_pos[0], -origin_pos[1])
+#         pivot_rotate = pivot.rotate(angle)
+#         pivot_move = pivot_rotate - pivot
 
-        # calculate the translation of the pivot
-        if origin_pos is None:
-            origin_pos = w / 2, h / 2
-        pivot = pygame.math.Vector2(origin_pos[0], -origin_pos[1])
-        pivot_rotate = pivot.rotate(angle)
-        pivot_move = pivot_rotate - pivot
+#         # calculate the upper left origin of the rotated image
+#         origin = (pos[0] - origin_pos[0] + min_box[0] - pivot_move[0],
+#                   pos[1] - origin_pos[1] - max_box[1] + pivot_move[1])
+#         # get a rotated image
+#         rotated_image = pygame.transform.rotate(image, angle)
+#         # rotate and blit the image
+#         surf.blit(rotated_image, origin)
+#         # draw rectangle around the image
+#         if show_rect:
+#             pygame.draw.rect(surf, (255, 0, 0), (*origin, *rotated_image.get_size()), 2)
 
-        # calculate the upper left origin of the rotated image
-        origin = (pos[0] - origin_pos[0] + min_box[0] - pivot_move[0],
-                  pos[1] - origin_pos[1] - max_box[1] + pivot_move[1])
-        # get a rotated image
-        rotated_image = pygame.transform.rotate(image, angle)
-        # rotate and blit the image
-        surf.blit(rotated_image, origin)
-        # draw rectangle around the image
-        if show_rect:
-            pygame.draw.rect(surf, (255, 0, 0), (*origin, *rotated_image.get_size()), 2)
+#     @classmethod
+#     def get_color(cls, object_: 'RoadObject', transparent: bool = False):
+#         color = cls.DEFAULT_COLOR
 
-    @classmethod
-    def get_color(cls, object_: 'RoadObject', transparent: bool = False):
-        color = cls.DEFAULT_COLOR
+#         if isinstance(object_, Obstacle):
+#             if object_.crashed:
+#                 # indicates failure
+#                 color = cls.RED
+#             else:
+#                 color = cls.YELLOW
+#         elif isinstance(object_, Landmark):
+#             if object_.hit:
+#                 # indicates success
+#                 color = cls.GREEN
+#             else:
+#                 color = cls.BLUE
 
-        if isinstance(object_, Obstacle):
-            if object_.crashed:
-                # indicates failure
-                color = cls.RED
-            else:
-                color = cls.YELLOW
-        elif isinstance(object_, Landmark):
-            if object_.hit:
-                # indicates success
-                color = cls.GREEN
-            else:
-                color = cls.BLUE
+#         if transparent:
+#             color = (color[0], color[1], color[2], 30)
 
-        if transparent:
-            color = (color[0], color[1], color[2], 30)
-
-        return color
+#         return color
 

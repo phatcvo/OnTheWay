@@ -89,6 +89,8 @@ class AbstractAgent(Configurable, ABC):
         :param SummaryWriter writer: a summary writer
         """
         self.writer = writer
+        
+        
 
     def set_directory(self, directory):
         self.directory = directory

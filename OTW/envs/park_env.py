@@ -7,7 +7,7 @@ from OTW.common.abstract import AbstractEnv
 from OTW.common.observation import MultiAgentObservation, observation_factory
 from OTW.road.lane import StraightLane, LineType
 from OTW.road.road import Road, RoadNetwork
-from OTW.vehicle.graphics import VehicleGraphics
+# from OTW.vehicle.graphics import VehicleGraphics
 from OTW.vehicle.kinematics import Vehicle
 from OTW.vehicle.objects import Landmark, Obstacle
 
@@ -150,7 +150,6 @@ class ParkingEnv(AbstractEnv, GoalEnv):
         self.controlled_vehicles = []
         for i in range(self.config["controlled_vehicles"]):
             vehicle = self.action_type.vehicle_class(self.road, [i*20, 0], 2*np.pi*self.np_random.uniform(), 0)
-            # vehicle.color = VehicleGraphics.EGO_COLOR
             self.road.vehicles.append(vehicle)
             self.controlled_vehicles.append(vehicle)
 

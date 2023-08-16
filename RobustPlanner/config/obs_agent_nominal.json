@@ -1,0 +1,41 @@
+{
+    "__class__": "<class 'RobustPlanner.agents.robust.robust_epc.NominalEPCAgent'>",
+    "sub_agent_path": "/home/rml-phat/Documents/RML-Work/OTW-RML/RobustPlanner/config/oracle.json",
+    "A":[[0, 0, 1, 0],
+         [0, 0, 0, 1],
+         [0, 0, 0, 0],
+         [0, 0, 0, 0]],
+    "phi": [
+        [
+            [0, 0, 0, 0],
+            [0, 0, 0, 0],
+            [0, 0, -1, 0],
+            [0, 0, 0, 0]
+        ],
+        [
+            [0, 0, 0, 0],
+            [0, 0, 0, 0],
+            [0, 0, 0, 0],
+            [0, 0, 0, -1]
+        ]
+    ],
+    "B": [
+        [0, 0],
+        [0, 0],
+        [1, 0],
+        [0, 1]
+    ],
+    "D": [[1],
+          [1],
+          [0],
+          [0]],
+    "omega": [[-0.1], [0.1]],
+    "sigma": [
+        [0.2, 0, 0, 0],
+        [0, 0.2, 0, 0],
+        [0, 0, 0.2, 0.0],
+        [0, 0, 0.0, 0.2]
+    ],
+    "parameter_bound": 1.0,
+    "parameter_box": [[0, 0], [10.0, 10.0]]
+}

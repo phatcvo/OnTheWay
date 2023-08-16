@@ -1,7 +1,7 @@
 {
     "id": "street-v1",
     "import_module": "street_env",
-    "lanes_count": 4,
+    "lanes_count": 3,
     "vehicles_count": 50,
     "duration": 50,
     "other_vehicles_type": "OTW.vehicle.controller.LinearVehicle",

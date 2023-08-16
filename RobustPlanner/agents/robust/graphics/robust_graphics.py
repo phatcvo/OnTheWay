@@ -15,7 +15,7 @@ class DiscreteRobustPlannerGraphics(TreeGraphics):
             IntervalRobustPlannerGraphics.display_uncertainty(env, plan, sim_surface, trajectory=True)
 
         TreeGraphics.display(agent, agent_surface)
-        # print("DiscreteRobustPlannerGraphics")
+        print("DiscreteRobustPlannerGraphics")
 
     @classmethod
     def draw_node(cls, node, surface, origin, size, config):
@@ -38,10 +38,10 @@ class IntervalRobustPlannerGraphics(object):
 
     @classmethod
     def display(cls, agent, agent_surface, sim_surface):
-        robust_env = common.factory.preprocess_env(agent.env, agent.config["env_preprocessors"])
+        robust_env = common.factory.preprocess_env(agent.env, agent.config["env_preprocessors"]) 
         cls.display_uncertainty(robust_env, plan=agent.get_plan(), surface=sim_surface)
         if agent_surface and hasattr(agent, "sub_agent"):
-            agents.tree_search.graphics.TreeGraphics.display(agent.sub_agent, agent_surface)
+            TreeGraphics.display(agent.sub_agent, agent_surface)
 
     @classmethod
     def display_uncertainty(cls, robust_env, plan, surface, trajectory=True):
@@ -57,7 +57,6 @@ class IntervalRobustPlannerGraphics(object):
         # print (plan)  
         for action in plan:
             robust_env.step(action)
-            # print ("Trajectory1")  
             
         for vehicle in robust_env.road.vehicles:
 
@@ -67,10 +66,10 @@ class IntervalRobustPlannerGraphics(object):
             min_traj = [o.position[0].clip(vehicle.position - 100, vehicle.position + 100) for o in vehicle.interval_trajectory]
             max_traj = [o.position[1].clip(vehicle.position - 100, vehicle.position + 100) for o in vehicle.interval_trajectory]
             uncertainty_surface = pygame.Surface(surface.get_size(), pygame.SRCALPHA, 32)
-            # print ("Trajectory33") 
+            print ("display_traj_uncertainty") 
             cls.display_traj_uncertainty(min_traj, max_traj, uncertainty_surface, surface, cls.UNCERTAINTY_TIME_COLORMAP)
-            if trajectory:
-                cls.display_trajectory(vehicle.trajectory, uncertainty_surface, surface, cls.MODEL_TRAJ_COLOR)
+            # if trajectory:
+            #     cls.display_trajectory(vehicle.trajectory, uncertainty_surface, surface, cls.MODEL_TRAJ_COLOR)
             surface.blit(uncertainty_surface, (0, 0))
 
     @classmethod
@@ -79,14 +78,12 @@ class IntervalRobustPlannerGraphics(object):
         color = (color[0], color[1], color[2], cls.TRANSPARENCY)
         pos = lambda x: getattr(x, "position", x)
         for i in range(len(trajectory)-1):
-            pygame.draw.line(surface, color, sim_surface.vec2pix(pos(trajectory[i])), sim_surface.vec2pix(pos(trajectory[i+1])), 5)
+            pygame.draw.line(surface, color, sim_surface.vec2pix(pos(trajectory[i])), sim_surface.vec2pix(pos(trajectory[i+1])), 8)
 
     @classmethod
     def display_box(cls, min_pos, max_pos, surface, sim_surface, color):
         import pygame
-        rect = (sim_surface.vec2pix(min_pos),
-                (sim_surface.pix(max_pos[0] - min_pos[0]),
-                 sim_surface.pix(max_pos[1] - min_pos[1])))
+        rect = (sim_surface.vec2pix(min_pos), (sim_surface.pix(max_pos[0] - min_pos[0]), sim_surface.pix(max_pos[1] - min_pos[1])))
         try:
             if rect[1] != (0, 0):
                 pygame.draw.rect(surface, color, rect, 0)
@@ -105,12 +102,9 @@ class IntervalRobustPlannerGraphics(object):
                 if boxes:
                     cls.display_box(min_traj[i], max_traj[i], surface, sim_surface, color)
                 if i > 0:
-                    input_points = [[(A[i-1][0], min_traj[i-1][1]), (A[i-1][0], max_traj[i-1][1])],
-                                    [(B[i-1][0], min_traj[i-1][1]), (A[i-1][0], max_traj[i-1][1])],
-                                    [(A[i-1][0], min_traj[i-1][1]), (B[i-1][0], max_traj[i-1][1])]]
-                    output_points = [[(B[i][0], min_traj[i][1]), (B[i][0], max_traj[i][1])],
-                                     [(A[i][0], min_traj[i][1]), (B[i][0], max_traj[i][1])],
-                                     [(B[i][0], min_traj[i][1]), (A[i][0], max_traj[i][1])]]
+                    input_points = [[(A[i-1][0], min_traj[i-1][1]), (A[i-1][0], max_traj[i-1][1])],[(B[i-1][0], min_traj[i-1][1]), (A[i-1][0], max_traj[i-1][1])],[(A[i-1][0], min_traj[i-1][1]), (B[i-1][0], max_traj[i-1][1])]]
+                    
+                    output_points = [[(B[i][0], min_traj[i][1]), (B[i][0], max_traj[i][1])], [(A[i][0], min_traj[i][1]), (B[i][0], max_traj[i][1])], [(B[i][0], min_traj[i][1]), (A[i][0], max_traj[i][1])]]
                     for p1 in input_points:
                         for p2 in output_points:
                             try:

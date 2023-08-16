@@ -1,0 +1,5 @@
+{
+    "__class__": "<class 'RobustPlanner.agents.tree_search.deterministic.DeterministicPlannerAgent'>",
+    "gamma": 0.8,
+    "budget": 100
+}

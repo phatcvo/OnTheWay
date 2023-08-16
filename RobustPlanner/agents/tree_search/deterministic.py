@@ -1,8 +1,7 @@
 import numpy as np
 import logging
 
-from RobustPlanner import common, agents
-# from RobustPlanner.agents.tree_search import
+from RobustPlanner.common.factory import safe_deepcopy_env
 from RobustPlanner.agents.tree_search.abstract import Node, AbstractTreeSearchAgent, AbstractPlanner
 
 logger = logging.getLogger(__name__)
@@ -37,7 +36,7 @@ class DeterministicNode(Node):
         except AttributeError:
             actions = range(self.state.action_space.n)
         for action in actions:
-            self.children[action] = type(self)(self, self.planner, state = common.factory.safe_deepcopy_env(self.state), depth=self.depth + 1)
+            self.children[action] = type(self)(self, self.planner, state = safe_deepcopy_env(self.state), depth=self.depth + 1)
             observation, reward, done, info = self.planner.step(self.children[action].state, action)
             self.planner.leaves.append(self.children[action])
             self.children[action].update(reward, done, observation)
@@ -101,7 +100,7 @@ class OptimisticDeterministicPlanner(AbstractPlanner):
     def run(self):
         leaf_to_expand = max(self.leaves, key=lambda n: n.get_value_upper_bound())
         if leaf_to_expand.done:
-            logger.warning("Expanding a terminal state")
+            logger.warning("Expanding a terminal state ODP")
         leaf_to_expand.expand()
         leaf_to_expand.backup_to_root()
 

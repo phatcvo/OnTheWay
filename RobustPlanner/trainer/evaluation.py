@@ -18,15 +18,11 @@ from pathlib import Path
 from tensorboardX import SummaryWriter
 from gym.wrappers import RecordVideo, RecordEpisodeStatistics, capped_cubic_video_schedule
 
-import RobustPlanner
 from RobustPlanner.common import factory, graphics, configuration, memory, utils
 from RobustPlanner.trainer.logger import configure, add_file_handler
-# from RobustPlanner.common.graphics import AgentGraphics
-# from RobustPlanner.common.configuration import serialize
-# from RobustPlanner.common.memory import Transition
-# from RobustPlanner.common.utils import near_split, zip_with_singletons
 
-# from RobustPlanner.trainer.graphics import RewardViewer
+
+from RobustPlanner.trainer.graphic import RewardViewer
 
 logger = logging.getLogger(__name__)
 
@@ -92,6 +88,7 @@ class Evaluation(object):
         self.wrapped_env = RecordEpisodeStatistics(self.wrapped_env)
         self.episode = 0
         self.writer = SummaryWriter(str(self.run_directory))
+        print ("Writing model parameters", self.writer)
         self.agent.set_writer(self.writer)
         self.agent.evaluation = self
         self.write_logging()
@@ -114,8 +111,10 @@ class Evaluation(object):
             except AttributeError:
                 logger.info("The environment viewer doesn't support agent rendering.")
         self.reward_viewer = None
+        
         if display_rewards:
             self.reward_viewer = RewardViewer()
+            print ("display_rewards", self.reward_viewer)
         self.observation = None
 
     def train(self):
@@ -127,11 +126,7 @@ class Evaluation(object):
         self.close()
 
     def test(self):
-        """
-        Test the agent.
 
-        If applicable, the agent model should be loaded before using the recover option.
-        """
         self.training = False
         if self.display_env:
             self.wrapped_env.episode_trigger = lambda e: True
@@ -140,6 +135,8 @@ class Evaluation(object):
         except AttributeError:
             pass
         self.run_episodes()
+        RewardViewer.display()
+        
         self.close()
 
     def run_episodes(self):
@@ -148,12 +145,13 @@ class Evaluation(object):
             terminal = False
             self.reset(seed=self.episode)
             rewards = []
+            
             start_time = time.time()
             while not terminal:
                 # Step until a terminal step is reached
                 reward, terminal = self.step()
                 rewards.append(reward)
-
+                # print('Total reward: ', reward)
                 # Catch interruptions
                 try:
                     if self.env.unwrapped.done:
@@ -163,8 +161,10 @@ class Evaluation(object):
 
             # End of episode
             duration = time.time() - start_time
+            print("duration ====", duration)
             self.after_all_episodes(self.episode, rewards, duration)
             self.after_some_episodes(self.episode, rewards)
+            
 
     def step(self):
         """
@@ -183,14 +183,17 @@ class Evaluation(object):
 
         # Step the environment
         previous_observation, action = self.observation, actions[0]
-        self.observation, reward, done, info = self.wrapped_env.step(action)
-        terminal = done 
+        # self.observation, reward, done, info = self.wrapped_env.step(action)
+        self.observation, reward, terminal, info = self.wrapped_env.step(action)
+        # terminal = done 
+
 
         # Record the experience.
         try:
-            self.agent.record(previous_observation, action, reward, self.observation, done, info)
+            self.agent.record(previous_observation, action, reward, self.observation, terminal, info)
         except NotImplementedError:
             pass
+
 
         return reward, terminal
 
@@ -206,8 +209,7 @@ class Evaluation(object):
         self.agent.reset()
         for batch, batch_size in enumerate(batch_sizes):
             logger.info("[BATCH={}/{}]---------------------------------------".format(batch+1, len(batch_sizes)))
-            logger.info("[BATCH={}/{}][run_batched_episodes] #samples={}".format(batch+1, len(batch_sizes),
-                                                                                 len(self.agent.memory)))
+            logger.info("[BATCH={}/{}][run_batched_episodes] #samples={}".format(batch+1, len(batch_sizes),len(self.agent.memory)))
             logger.info("[BATCH={}/{}]---------------------------------------".format(batch+1, len(batch_sizes)))
             # Save current agent
             model_path = self.save_agent_model(identifier=batch)
@@ -249,18 +251,7 @@ class Evaluation(object):
     # Collect interaction samples of an agent / environment pair.
     @staticmethod
     def collect_samples(environment_config, agent_config, count, start_time, seed, model_path, batch):
-        """
-        Note that the last episode may not terminate, when enough samples have been collected.
 
-        :param dict environment_config: the environment configuration
-        :param dict agent_config: the agent configuration
-        :param int count: number of samples to collect
-        :param start_time: the initial local time of the agent
-        :param seed: the env/agent seed
-        :param model_path: the path to load the agent model from
-        :param batch: index of the current batch
-        :return: a list of trajectories, i.e. lists of Transitions
-        """
         env = factory.load_environment(environment_config)
         env.seed(seed)
 
@@ -335,7 +326,7 @@ class Evaluation(object):
 
     def after_some_episodes(self, episode, rewards,
                             best_increase=1.1,
-                            episodes_window=50):
+                            episodes_window=15):
         if capped_cubic_video_schedule(episode):
             # Save the model
             if self.training:
@@ -386,26 +377,3 @@ class Evaluation(object):
         self.writer.close()
         if self.close_env:
             self.env.close()
-
-
-class RewardViewer(object):
-    def __init__(self):
-        self.rewards = []
-
-    def update(self, reward):
-        self.rewards.append(reward)
-        self.display()
-
-    def display(self):
-        plt.figure(num='Rewards')
-        plt.clf()
-        plt.title('Total reward')
-        plt.xlabel('Episode')
-        plt.ylabel('Reward')
-
-        rewards = pd.Series(self.rewards)
-        means = rewards.rolling(window=100).mean()
-        plt.plot(rewards)
-        plt.plot(means)
-        plt.pause(0.001)
-        plt.plot(block=False)

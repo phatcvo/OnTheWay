@@ -1,0 +1,5 @@
+{
+    "id": "obstacle-v1",
+    "import_module": "OTW",
+    "observation_type": "state"
+}

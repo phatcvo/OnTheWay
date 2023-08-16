@@ -46,6 +46,7 @@ class IntervalFeedback(LinearFeedbackAgent):
     def act(self, observation):
         if not isinstance(observation, dict):
             raise ValueError("The observation should be a dict containing the two interval bounds")
+        print("observation", observation)
         x_m = observation["interval_min"]
         x_M = observation["interval_max"]
         x_ref = observation["reference_state"]

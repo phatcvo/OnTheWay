@@ -1,347 +1,384 @@
 from __future__ import division, print_function
 import os
 import sys
-
+sys.path.append('/home/rml-phat/Documents/RML-Work/OTW-RML/')
 print("Current Working Directory:", os.getcwd())
 
-# from rl_agents.trainer import logger
-# sys.path.append('/home/rml-phat/.local/lib/python3.8/site-packages/rl_agents') 
-
-# file_path ='/home/rml-phat/Documents/RML-Work/Code/OTW-Project-v2.2/rl-agents'
-# sys.path.append(file_path)
-# print("File Path:", file_path)
-
-# from rl_agents.trainer.evaluation1 import Evaluation
-# from rl_agents.agents.common.factory import load_agent, load_environment
-# from rl_agents.trainer.graphics import RewardViewer
-# script_path = os.path.abspath(__file__)
-# print("Script Path:", script_path)
-
-import copy
-import importlib
-import json
 import logging
-import gym
 import numpy as np
 import datetime
 import logging
-import time
-import collections
-# import seaborn as sns
-# sns.set()
-
 from pathlib import Path
-# from tensorboardX import SummaryWriter
-from gym.wrappers import RecordVideo, RecordEpisodeStatistics, capped_cubic_video_schedule
-import sys
-# sys.path.append('/home/rml-phat/Documents/OTW-RML')
-# from rl_agents.agents.common.graphics import AgentGraphics
-# from rl_agents.trainer.graphics import RewardViewer
-# from rl_agents.configuration import Configurable
-import RobustPlanner
-from RobustPlanner.trainer.evaluation import Evaluation
+import datetime
+import json
+import logging
+import os
+import time
+import numpy as np
+
+import matplotlib.pyplot as plt
+import pandas as pd
+import seaborn as sns
+sns.set()
+
+from tensorboardX import SummaryWriter
+from gym.wrappers import RecordVideo, RecordEpisodeStatistics
+# from RobustPlanner.trainer.evaluation import Evaluation
 from RobustPlanner.common.factory import load_agent, load_environment
 logger = logging.getLogger(__name__)
 
+from multiprocessing.pool import Pool
+from pathlib import Path
+
+from tensorboardX import SummaryWriter
+from gym.wrappers import RecordVideo, RecordEpisodeStatistics, capped_cubic_video_schedule
 
 # from RobustPlanner.agents.robust.graphics.robust_graphics import IntervalRobustPlannerGraphics
 # from RobustPlanner.agents.robust.robust import IntervalRobustPlannerAgent
 
-# ################################################################
-# class AgentGraphics(object):
-#     """
-#         Graphical visualization of any Agent implementing AbstractAgent.
-#     """
-#     @classmethod
-#     def display(cls, agent, agent_surface, sim_surface=None):
-#         """
-#             Display an agent visualization on a pygame surface.
-
-#         :param agent: the agent to be displayed
-#         :param agent_surface: the pygame surface on which the agent is displayed
-#         :param sim_surface: the pygame surface on which the environment is displayed
-#         """
-
-#         if isinstance(agent, IntervalRobustPlannerAgent):
-#             IntervalRobustPlannerGraphics.display(agent, agent_surface, sim_surface)
+from RobustPlanner.common import factory, graphics, configuration, memory, utils
+from RobustPlanner.trainer.logger import configure, add_file_handler
+from RobustPlanner.trainer.graphic import RewardViewer
 
 
 # ################################################################
+#The evaluation of an agent interacting with an environment to maximize its expected reward.
+class Evaluation(object):
+    OUTPUT_FOLDER = '/home/rml-phat/Documents/OTW-out'
+    SAVED_MODELS_FOLDER = 'saved_models'
+    RUN_FOLDER = 'run_{}_{}'
+    METADATA_FILE = 'metadata.{}.json'
+    LOGGING_FILE = 'logging.{}.log'
 
-# global rewards
-# rewards = []
+    def __init__(self,
+                 env,
+                 agent,
+                 directory=None,
+                 run_directory=None,
+                 num_episodes=1000,
+                 training=True,
+                 sim_seed=None,
+                 recover=None,
+                 display_env=True,
+                 display_agent=True,
+                 display_rewards=True,
+                 close_env=True):
+        """
 
-# class Evaluation(object):
-#     """
-#         The evaluation of an agent interacting with an environment to maximize its expected reward.
-#     """
+        :param env: The environment to be solved, possibly wrapping an AbstractEnv environment
+        :param AbstractAgent agent: The agent solving the environment
+        :param Path directory: Workspace directory path
+        :param Path run_directory: Run directory path
+        :param int num_episodes: Number of episodes run
+        !param training: Whether the agent is being trained or tested
+        :param sim_seed: The seed used for the environment/agent randomness source
+        :param recover: Recover the agent parameters from a file.
+                        - If True, it the default latest save will be used.
+                        - If a string, it will be used as a path.
+        :param display_env: Render the environment, and have a monitor recording its videos
+        :param display_agent: Add the agent graphics to the environment viewer, if supported
+        :param display_rewards: Display the performances of the agent through the episodes
+        :param close_env: Should the environment be closed when the evaluation is closed
 
-#     OUTPUT_FOLDER = 'out'
-#     SAVED_MODELS_FOLDER = 'saved_models'
-#     RUN_FOLDER = 'run_{}_{}'
-#     METADATA_FILE = 'metadata.{}.json'
-#     LOGGING_FILE = 'logging.{}.log'
+        """
+        self.env = env
+        self.agent = agent
+        self.num_episodes = num_episodes
+        self.training = training
+        self.sim_seed = sim_seed if sim_seed is not None else np.random.randint(0, 1e6)
+        self.close_env = close_env
+        self.display_env = display_env
 
-#     def __init__(self,
-#                  env,
-#                  agent,
-#                  num_episodes=1000,
-#                  sim_seed=None,
-#                  recover=None,
-#                  display_env=True,
-#                  display_agent=True,
-#                  display_rewards=True,
-#                  close_env=True):
+        self.directory = Path(directory or self.default_directory)
+        self.run_directory = self.directory / (run_directory or self.default_run_directory)
+        self.wrapped_env = RecordVideo(env, self.run_directory, episode_trigger=(None if self.display_env else lambda e: False))
+        try:
+            self.wrapped_env.unwrapped.set_record_video_wrapper(self.wrapped_env)
+        except AttributeError:
+            pass
+        self.wrapped_env = RecordEpisodeStatistics(self.wrapped_env)
+        self.episode = 0
+        self.writer = SummaryWriter(str(self.run_directory))
+        self.agent.set_writer(self.writer)
+        self.agent.evaluation = self
+        self.write_logging()
+        self.write_metadata()
+        self.filtered_agent_stats = 0
+        self.best_agent_stats = -np.infty, 0
 
-#         self.env = env
-#         self.agent = agent
-#         self.num_episodes = num_episodes
-#         # self.training = training
-#         self.sim_seed = sim_seed
-#         self.close_env = close_env
-#         self.display_env = display_env
+        self.recover = recover
+        if self.recover:
+            self.load_agent_model(self.recover)
 
-#         self.directory = self.default_directory # or Path(directory)
-#         self.run_directory = self.directory / self.default_run_directory # or run_directory
-#         self.wrapped_env = RecordVideo(env,
-#                                        self.run_directory,
-#                                        episode_trigger=(None if self.display_env else lambda e: False))
-#         try:
-#             self.wrapped_env.unwrapped.set_record_video_wrapper(self.wrapped_env)
-#         except AttributeError:
-#             pass
-#         self.wrapped_env = RecordEpisodeStatistics(self.wrapped_env)
-#         self.episode = 0
-#         self.writer = SummaryWriter(str(self.run_directory))
-#         self.agent.set_writer(self.writer)
-#         self.agent.evaluation = self
+        if display_agent:
+            try:
+                # Render the agent within the environment viewer, if supported
+                self.env.render()
+                self.env.unwrapped.viewer.directory = self.run_directory
+                self.env.unwrapped.viewer.set_agent_display(
+                    lambda agent_surface, sim_surface: graphics.AgentGraphics.display(self.agent, agent_surface, sim_surface))
+                self.env.unwrapped.viewer.directory = self.run_directory
+            except AttributeError:
+                logger.info("The environment viewer doesn't support agent rendering.")
+        self.reward_viewer = None
+        
+        if display_rewards:
+            self.reward_viewer = RewardViewer()
+        self.observation = None
 
+    def train(self):
+        self.training = True
+        if getattr(self.agent, "batched", False):
+            self.run_batched_episodes()
+        else:
+            self.run_episodes()
+        self.close()
 
-#         self.recover = recover
-#         if self.recover:
-#             self.load_agent_model(self.recover)
+    def test(self):
 
-#         if display_agent:
-#             try:
-#                 # Render the agent within the environment viewer, if supported
-#                 self.env.render()
-#                 self.env.unwrapped.viewer.directory = self.run_directory
-#                 self.env.unwrapped.viewer.set_agent_display(
-#                     lambda agent_surface, sim_surface: AgentGraphics.display(self.agent, agent_surface, sim_surface))
-#                 self.env.unwrapped.viewer.directory = self.run_directory
-#             except AttributeError:
-#                 logger.info("The environment viewer doesn't support agent rendering.")
-#         self.reward_viewer = None
-#         # if display_rewards:
-#         #     self.reward_viewer = RewardViewer()
+        self.training = False
+        if self.display_env:
+            self.wrapped_env.episode_trigger = lambda e: True
+        try:
+            self.agent.eval()
+        except AttributeError:
+            pass
+        self.run_episodes()
+        print("display")
+        RewardViewer.display()
+        
+        self.close()
+
+    def run_episodes(self):
+        for self.episode in range(self.num_episodes):
+            # Run episode
+            terminal = False
+            self.reset(seed=self.episode)
+            rewards = []
             
-#         self.observation = None
+            start_time = time.time()
+            while not terminal:
+                # Step until a terminal step is reached
+                reward, terminal = self.step()
+                rewards.append(reward)
+                print('Total reward: ', reward)
+                # Catch interruptions
+                try:
+                    if self.env.unwrapped.done:
+                        break
+                except AttributeError:
+                    pass
 
-#     def run_episodes(self):
-#         for self.episode in range(self.num_episodes):
-#             # Run episode
-#             terminal = False
-#             self.seed(self.episode)
-#             self.reset()
-#             rewards = []
-#             # start_time = time.time()
-#             while not terminal:
-#                 # Step until a terminal step is reached
-#                 reward, terminal = self.step()
-#                 rewards.append(reward)
-#                 # Catch interruptions
-#                 try:
-#                     if self.env.unwrapped.done:
-#                         break
-#                 except AttributeError:
-#                     pass
+            # End of episode
+            duration = time.time() - start_time
+            print("duration ====", duration)
+            self.after_all_episodes(self.episode, rewards, duration)
+            self.after_some_episodes(self.episode, rewards)
+            
 
-#             # End of episode
-#             # duration = time.time() - start_time
-#             # self.after_all_episodes(self.episode, rewards, duration)
-#             # self.after_some_episodes(self.episode, rewards)
-#             # RewardViewer.update(reward)
+    def step(self):
+        """
+            Plan a sequence of actions according to the agent policy, and step the environment accordingly.
+        """
+        # Query agent for actions sequence
+        actions = self.agent.plan(self.observation)
+        if not actions:
+            raise Exception("The agent did not plan any action")
 
+        # Forward the actions to the environment viewer
+        try:
+            self.env.unwrapped.viewer.set_agent_action_sequence(actions)
+        except AttributeError:
+            pass
 
-#     def step(self):
-#         """
-#             Plan a sequence of actions according to the agent policy, and step the environment accordingly.
-#         """
-#         # Query agent for actions sequence
-#         actions = self.agent.plan(self.observation)
-#         if not actions:
-#             raise Exception("The agent did not plan any action")
-
-#         # Forward the actions to the environment viewer
-#         try:
-#             self.env.unwrapped.viewer.set_agent_action_sequence(actions)
-#         except AttributeError:
-#             pass
-
-#         # Step the environment
-#         previous_observation, action = self.observation, actions[0]
-#         # print("=============10")
-#         self.observation, reward, terminal, info = self.wrapped_env.step(action)
+        # Step the environment
+        previous_observation, action = self.observation, actions[0]
+        self.observation, reward, done, info = self.wrapped_env.step(action)
+        terminal = done 
 
 
-#         rewards.append(reward)
-
+        # Record the experience.
+        try:
+            self.agent.record(previous_observation, action, reward, self.observation, terminal, info)
+        except NotImplementedError:
+            pass
         
-        
-#         # print("===============================")
-#         # plt.figure(num='Rewards')
-#         # plt.clf()
-#         # plt.title('Total reward')
-#         # plt.xlabel('Episode')
-#         # plt.ylabel('Reward')
+        return reward, terminal
 
-#         # rewards1 = pd.Series(rewards)
-#         # means = rewards1.rolling(window=100).mean()
-#         # plt.plot(rewards1)
-#         # plt.plot(means)
-#         # plt.pause(0.001)
-#         # plt.plot(block=False)
+    def run_batched_episodes(self):
+        """
+            Alternatively,
+            - run multiple sample-collection jobs in parallel
+            - update model
+        """
+        episode = 0
+        episode_duration = 14  # TODO: use a fixed number of samples instead
+        batch_sizes = utils.near_split(self.num_episodes * episode_duration, size_bins=self.agent.config["batch_size"])
+        self.agent.reset()
+        for batch, batch_size in enumerate(batch_sizes):
+            logger.info("[BATCH={}/{}]---------------------------------------".format(batch+1, len(batch_sizes)))
+            logger.info("[BATCH={}/{}][run_batched_episodes] #samples={}".format(batch+1, len(batch_sizes),len(self.agent.memory)))
+            logger.info("[BATCH={}/{}]---------------------------------------".format(batch+1, len(batch_sizes)))
+            # Save current agent
+            model_path = self.save_agent_model(identifier=batch)
 
-#         return reward, terminal
+            # Prepare workers
+            env_config, agent_config = configuration.serialize(self.env), configuration.serialize(self.agent)
+            cpu_processes = self.agent.config["processes"] or os.cpu_count()
+            workers_sample_counts = utils.near_split(batch_size, cpu_processes)
+            workers_starts = list(np.cumsum(np.insert(workers_sample_counts[:-1], 0, 0)) + np.sum(batch_sizes[:batch]))
+            base_seed = self.seed(batch * cpu_processes)[0]
+            workers_seeds = [base_seed + i for i in range(cpu_processes)]
+            workers_params = list(utils.zip_with_singletons(env_config, agent_config, workers_sample_counts, workers_starts, workers_seeds, model_path, batch))
 
+            # Collect trajectories
+            logger.info("Collecting {} samples with {} workers...".format(batch_size, cpu_processes))
+            if cpu_processes == 1:
+                results = [Evaluation.collect_samples(*workers_params[0])]
+            else:
+                with Pool(processes=cpu_processes) as pool:
+                    results = pool.starmap(Evaluation.collect_samples, workers_params)
+            trajectories = [trajectory for worker in results for trajectory in worker]
 
+            # Fill memory
+            for trajectory in trajectories:
+                if trajectory[-1].terminal:  # Check whether the episode was properly finished before logging
+                    self.after_all_episodes(episode, [transition.reward for transition in trajectory])
+                episode += 1
+                [self.agent.record(*transition) for transition in trajectory]
 
-#     def load_agent_model(self, model_path):
-#         if model_path is True:
-#             model_path = self.directory / self.SAVED_MODELS_FOLDER / "latest.tar"
-#         if isinstance(model_path, str):
-#             model_path = Path(model_path)
-#             if not model_path.exists():
-#                 model_path = self.directory / self.SAVED_MODELS_FOLDER / model_path
-#         try:
-#             model_path = self.agent.load(filename=model_path)
-#             if model_path:
-#                 logger.info("Loaded {} model from {}".format(self.agent.__class__.__name__, model_path))
-#         except FileNotFoundError:
-#             logger.warning("No pre-trained model found at the desired location.")
-#         except NotImplementedError:
-#             pass
+            # Fit model
+            self.agent.update()
 
-#     def after_all_episodes(self, episode, rewards, duration):
-#         rewards = np.array(rewards)
-#         gamma = self.agent.config.get("gamma", 1)
-#         self.writer.add_scalar('episode/length', len(rewards), episode)
-#         self.writer.add_scalar('episode/total_reward', sum(rewards), episode)
-#         self.writer.add_scalar('episode/return', sum(r*gamma**t for t, r in enumerate(rewards)), episode)
-#         self.writer.add_scalar('episode/fps', len(rewards) / duration, episode)
-#         self.writer.add_histogram('episode/rewards', rewards, episode)
-#         logger.info("Episode {} score: {:.1f}".format(episode, sum(rewards)))
+    # Collect interaction samples of an agent / environment pair.
+    @staticmethod
+    def collect_samples(environment_config, agent_config, count, start_time, seed, model_path, batch):
 
-#     @property
-#     def default_directory(self):
-#         return Path(self.OUTPUT_FOLDER) / self.env.unwrapped.__class__.__name__ / self.agent.__class__.__name__
+        env = factory.load_environment(environment_config)
+        env.seed(seed)
 
-#     @property
-#     def default_run_directory(self):
-#         return self.RUN_FOLDER.format(datetime.datetime.now().strftime('%Y%m%d-%H%M%S'), os.getpid())
+        if batch == 0:  # Force pure exploration during first batch
+            agent_config["exploration"]["final_temperature"] = 1
+        agent_config["device"] = "cpu"
+        agent = factory.load_agent(agent_config, env)
+        agent.load(model_path)
+        agent.seed(seed)
+        agent.set_time(start_time)
 
+        state = env.reset()
+        episodes = []
+        trajectory = []
+        for _ in range(count):
+            action = agent.act(state)
+            next_state, reward, done, info = env.step(action)
+            trajectory.append(memory.Transition(state, action, reward, next_state, done, info))
+            if done:
+                state = env.reset()
+                episodes.append(trajectory)
+                trajectory = []
+            else:
+                state = next_state
+        if trajectory:  # Unfinished episode
+            episodes.append(trajectory)
+        env.close()
+        return episodes
 
-#     def seed(self, episode=0):
-#         seed = self.sim_seed + episode if self.sim_seed is not None else None
-#         seed = self.wrapped_env.seed(seed)
-#         self.agent.seed(seed[0])  # Seed the agent with the main environment seed
-#         return seed
+    def save_agent_model(self, identifier, do_save=True):
+        # Create the folder if it doesn't exist
+        permanent_folder = self.directory / self.SAVED_MODELS_FOLDER
+        os.makedirs(permanent_folder, exist_ok=True)
 
-#     def reset(self):
-#         self.observation = self.wrapped_env.reset()
-#         self.agent.reset()
+        episode_path = None
+        if do_save:
+            episode_path = Path(self.run_directory) / "checkpoint-{}.tar".format(identifier)
+            try:
+                self.agent.save(filename=permanent_folder / "latest.tar")
+                episode_path = self.agent.save(filename=episode_path)
+                if episode_path:
+                    logger.info("Saved {} model to {}".format(self.agent.__class__.__name__, episode_path))
+            except NotImplementedError:
+                pass
+        return episode_path
 
-#     def close(self):
-#         self.wrapped_env.close()
-#         self.writer.close()
-#         if self.close_env:
-#             self.env.close()
+    def load_agent_model(self, model_path):
+        if model_path is True:
+            model_path = self.directory / self.SAVED_MODELS_FOLDER / "latest.tar"
+        if isinstance(model_path, str):
+            model_path = Path(model_path)
+            if not model_path.exists():
+                model_path = self.directory / self.SAVED_MODELS_FOLDER / model_path
+        try:
+            model_path = self.agent.load(filename=model_path)
+            if model_path:
+                logger.info("Loaded {} model from {}".format(self.agent.__class__.__name__, model_path))
+        except FileNotFoundError:
+            logger.warning("No pre-trained model found at the desired location.")
+        except NotImplementedError:
+            pass
 
-# ################################################################
-# def agent_factory(environment, config):
-#     if "__class__" in config:
-#         path = config['__class__'].split("'")[1]
-#         module_name, class_name = path.rsplit(".", 1)
-#         agent_class = getattr(importlib.import_module(module_name), class_name)
-#         agent = agent_class(environment, config)
-#         return agent
-#     else:
-#         raise ValueError("The configuration should specify the agent __class__")
+    def after_all_episodes(self, episode, rewards, duration):
+        rewards = np.array(rewards)
+        gamma = self.agent.config.get("gamma", 1)
+        self.writer.add_scalar('episode/length', len(rewards), episode)
+        self.writer.add_scalar('episode/total_reward', sum(rewards), episode)
+        self.writer.add_scalar('episode/return', sum(r*gamma**t for t, r in enumerate(rewards)), episode)
+        self.writer.add_scalar('episode/fps', len(rewards) / max(duration, 1e-6), episode)
+        self.writer.add_histogram('episode/rewards', rewards, episode)
+        logger.info("Episode {} score: {:.1f}".format(episode, sum(rewards)))
 
+    def after_some_episodes(self, episode, rewards,
+                            best_increase=1.1,
+                            episodes_window=15):
+        if capped_cubic_video_schedule(episode):
+            # Save the model
+            if self.training:
+                self.save_agent_model(episode)
 
-# def load_agent(agent_config, env):
-#     # Load config from file
-#     if not isinstance(agent_config, dict):
-#         agent_config = load_agent_config(agent_config)
-#     return agent_factory(env, agent_config)
+        if self.training:
+            # Save best model so far, averaged on a window
+            best_reward, best_episode = self.best_agent_stats
+            self.filtered_agent_stats += 1 / episodes_window * (np.sum(rewards) - self.filtered_agent_stats)
+            if self.filtered_agent_stats > best_increase * best_reward \
+                    and episode >= best_episode + episodes_window:
+                self.best_agent_stats = (self.filtered_agent_stats, episode)
+                self.save_agent_model("best")
 
+    @property
+    def default_directory(self):
+        return Path(self.OUTPUT_FOLDER) / self.env.unwrapped.__class__.__name__ / self.agent.__class__.__name__
 
-# def load_agent_config(config_path):
-#     with open(config_path) as f:
-#         agent_config = json.loads(f.read())
-#     if "base_config" in agent_config:
-#         base_config = load_agent_config(agent_config["base_config"])
-#         del agent_config["base_config"]
-#         agent_config = Configurable.rec_update(base_config, agent_config)
-#     return agent_config
+    @property
+    def default_run_directory(self):
+        return self.RUN_FOLDER.format(datetime.datetime.now().strftime('%Y%m%d-%H%M%S'), os.getpid())
 
+    def write_metadata(self):
+        metadata = dict(env = configuration.serialize(self.env), agent = configuration.serialize(self.agent))
+        file_infix = '{}.{}'.format(id(self.wrapped_env), os.getpid())
+        file = self.run_directory / self.METADATA_FILE.format(file_infix)
+        with file.open('w') as f:
+            json.dump(metadata, f, sort_keys=True, indent=4)
 
-# def load_environment(env_config):
-#     # Load the environment config from file
-#     if not isinstance(env_config, dict):
-#         with open(env_config) as f:
-#             env_config = json.loads(f.read())
+    def write_logging(self):
+        file_infix = '{}.{}'.format(id(self.wrapped_env), os.getpid())
+        configure()
+        add_file_handler(self.run_directory / self.LOGGING_FILE.format(file_infix))
 
-#     # Make the environment
-#     if env_config.get("import_module", None):
-#         __import__(env_config["import_module"])
-#     try:
-#         env = gym.make(env_config['id'])
-#         # Save env module in order to be able to import it again
-#         env.import_module = env_config.get("import_module", None)
-#     except KeyError:
-#         raise ValueError("The gym register id of the environment must be provided")
-#     # except gym.error.UnregisteredEnv:
-#     #     # The environment is unregistered.
-#     #     print("import_module", env_config["import_module"])
-#     #     raise gym.error.UnregisteredEnv('Environment {} not registered. The environment module should be specified by '
-#     #                                     'the "import_module" key of the environment configuration'.format(
-#     #                                         env_config['id']))
+    def reset(self, seed=0):
+        seed = self.sim_seed + seed if self.sim_seed is not None else None
+        self.observation = self.wrapped_env.reset()
+        self.agent.seed(seed)  # Seed the agent with the main environment seed
+        self.agent.reset()
 
-#     # Configure the environment, if supported
-#     try:
-#         env.unwrapped.configure(env_config)
-#         # Reset the environment to ensure configuration is applied
-#         env.reset()
-#     except AttributeError as e:
-#         logger.info("This environment does not support configuration. {}".format(e))
-#     return env
-
-# ################################################################
-# class Configurable(object):
-#     def __init__(self, config=None):
-#         self.config = self.default_config()
-#         if config:
-#             # Override default config with variant
-#             Configurable.rec_update(self.config, config)
-#             # Override incomplete variant with completed variant
-#             Configurable.rec_update(config, self.config)
-
-#     def update_config(self, config):
-#         Configurable.rec_update(self.config, config)
-
-#     @classmethod
-#     def default_config(cls):
-#         return {}
-
-#     @staticmethod
-#     def rec_update(d, u):
-#         for k, v in u.items():
-#             if isinstance(v, collections.Mapping):
-#                 d[k] = Configurable.rec_update(d.get(k, {}), v)
-#             else:
-#                 d[k] = v
-#         return d
+    def close(self):
+        """
+            Close the evaluation.
+        """
+        if self.training:
+            self.save_agent_model("final")
+        self.wrapped_env.close()
+        self.writer.close()
+        if self.close_env:
+            self.env.close()
 # ################################################################
 
 def main():    
@@ -350,6 +387,10 @@ def main():
 
     environment_config = "/home/rml-phat/Documents/RML-Work/OTW-RML/RobustPlanner/config/env_linear.json"
     agent_config = "/home/rml-phat/Documents/RML-Work/OTW-RML/RobustPlanner/config/baseline.json"
+    
+    # environment_config = "/home/rml-phat/Documents/RML-Work/OTW-RML/RobustPlanner/config/env_obs_state.json"
+    # agent_config = "/home/rml-phat/Documents/RML-Work/OTW-RML/RobustPlanner/config/obs_agent_nominal.json"
+    
     print("Start to test >>>>>")
     evaluate(environment_config, agent_config, repeat_count, test_mode)
 

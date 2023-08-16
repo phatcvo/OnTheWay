@@ -30,8 +30,8 @@ class AbstractTreeSearchAgent(AbstractAgent):
     def default_config(cls):
         return {
             "env_preprocessors": [],
-            "display_tree": False,
-            "receding_horizon": 1,
+            "display_tree": True,
+            "receding_horizon": 15,
             "terminal_reward": 0
         }
 
@@ -53,7 +53,7 @@ class AbstractTreeSearchAgent(AbstractAgent):
         else:
             actions = self.previous_actions[1:]
         self.write_tree()
-
+        # print("self.steps = %d", self.steps)
         self.previous_actions = actions
         return actions # the list of actions
 

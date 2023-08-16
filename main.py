@@ -14,7 +14,7 @@ import seaborn as sns
 sns.set()
 import pprint
 # from utils import record_videos, show_videos
-logger = logging.getLogger(__name__)
+# logger = logging.getLogger(__name__)
 import RobustPlanner
 from RobustPlanner.trainer.evaluation import Evaluation
 from RobustPlanner.common.factory import agent_factory, load_agent, load_environment
@@ -142,7 +142,6 @@ while True:
     while not done:
         # Test environment
         # action = env.action_type.actions_indexes["IDLE"] 
-        # obs, reward, done, info = env.step(action)
         action = agent.act(obs)
         obs, reward, done, info = env.step(action)
         

@@ -7,7 +7,7 @@ from numpy.linalg import LinAlgError
 
 from RobustPlanner import common, agents
 # from RobustPlanner.common.factory import safe_deepcopy_env
-# from RobustPlanner.common.control.feedback import IntervalFeedback
+from RobustPlanner.agents.control.feedback import IntervalFeedback
 from RobustPlanner.agents.robust.robust_epc import RobustEPCAgent
 
 # Robust Estimation, Prediction and Control.
@@ -15,7 +15,7 @@ class ConstrainedEPCAgent(RobustEPCAgent):
 
     def __init__(self, env, config=None):
         super().__init__(env, config)
-        self.feedback = agents.control.feedback.IntervalFeedback(self.env, config)
+        self.feedback = IntervalFeedback(self.env, config)
         self.iteration = 0
 
     @classmethod

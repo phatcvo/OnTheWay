@@ -38,7 +38,7 @@ class TreeGraphics(object):
         # print ("tree_search/graphic/action", act)
         # actions1 = ac[actions]
         font1 = pygame.font.Font(None, 25)
-        text1 = "Predictive action flow"
+        text1 = "Action flow: "
         text1 = font1.render(text1, 1, (10, 10, 10), (255, 255, 255))
         surface.blit(text1, (10, surface.get_height()-50))
 
