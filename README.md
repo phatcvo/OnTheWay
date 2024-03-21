@@ -1,4 +1,5 @@
-python3 -m venv otw-env
-source otw-env/bin/activate
+`python3 -m venv otw-env`
 
-sudo python setup.py install
+`source otw-env/bin/activate`
+
+`sudo python setup.py install`
