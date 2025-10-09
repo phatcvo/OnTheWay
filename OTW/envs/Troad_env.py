@@ -1,4 +1,4 @@
-from gym.envs.registration import register
+from gymnasium.envs.registration import register
 from typing import Dict, Tuple
 from copy import deepcopy
 import numpy as np

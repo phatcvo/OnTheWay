@@ -17,7 +17,7 @@ class RoadObject(ABC):
 
     def __init__(self, road: 'Road', position: Sequence[float], heading: float = 0, speed: float = 0):
         self.road = road # the road instance where the object is placed in
-        self.position = np.array(position, dtype=np.float) # cartesian position of object in the surface
+        self.position = np.array(position, dtype=float) # cartesian position of object in the surface
         self.heading = heading # the angle from positive direction of horizontal axis
         self.speed = speed # cartesian speed of object in the surface
         self.lane_index = self.road.network.get_closest_lane_index(self.position, self.heading) if self.road else np.nan

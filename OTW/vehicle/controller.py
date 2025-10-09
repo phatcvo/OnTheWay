@@ -181,14 +181,14 @@ class MDPVehicle(ControlledVehicle):
     def speed_to_index(self, speed: float) -> int: # an input speed [m/s]
         x = (speed - self.SPEED_MIN) / (self.SPEED_MAX - self.SPEED_MIN)
         # print(f'controller/speed2index {x}')
-        return np.int(np.clip(np.round(x * (self.SPEED_COUNT - 1)), 0, self.SPEED_COUNT - 1)) # the index of the closest speed allowed []
+        return int(np.clip(np.round(x * (self.SPEED_COUNT - 1)), 0, self.SPEED_COUNT - 1)) # the index of the closest speed allowed []
 
     # Find the index of the closest speed allowed to a given speed.
     @classmethod
     def speed_to_index_default(cls, speed: float) -> int: # an input speed [m/s]
         x = (speed - cls.SPEED_MIN) / (cls.SPEED_MAX - cls.SPEED_MIN)
         # print(f'controller/speed2index_def {x}')
-        return np.int(np.clip(np.round(x * (cls.SPEED_COUNT - 1)), 0, cls.SPEED_COUNT - 1)) # the index of the closest speed allowed []
+        return int(np.clip(np.round(x * (cls.SPEED_COUNT - 1)), 0, cls.SPEED_COUNT - 1)) # the index of the closest speed allowed []
 
     @classmethod
     def get_speed_index(cls, vehicle: Vehicle) -> int:

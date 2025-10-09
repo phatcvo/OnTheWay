@@ -1,6 +1,6 @@
 from itertools import product
 from typing import TYPE_CHECKING, Optional, Union, Tuple, Callable
-from gym import spaces
+from gymnasium import spaces
 import numpy as np
 
 from OTW.common import utils

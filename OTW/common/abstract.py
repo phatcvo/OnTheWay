@@ -1,9 +1,9 @@
 import copy
 import os
 from typing import List, Tuple, Optional, Callable
-import gym
-from gym import Wrapper
-from gym.utils import seeding
+import gymnasium as gym
+from gymnasium import Wrapper
+from gymnasium.utils import seeding
 import numpy as np
 
 from OTW.common.utils import class_from_path
@@ -19,7 +19,7 @@ Observation = np.ndarray
 class AbstractEnv(gym.Env):
     observation_type: ObservationType
     action_type: ActionType
-    _monitor: Optional[gym.wrappers.Monitor]
+    _monitor: Optional[gym.wrappers.RecordVideo]
     metadata = {
         'render.modes': ['human', 'rgb_array'],
     }
@@ -125,14 +125,31 @@ class AbstractEnv(gym.Env):
         raise NotImplementedError # the constraint signal, the alternate (constraint-free) reward
 
     # Reset the environment to it's initial configuration
-    def reset(self) -> Observation:
+    # def reset(self) -> Observation:
+    #     self.update_metadata()
+    #     self.define_spaces()  # First, to set the controlled vehicle class depending on action space
+    #     self.time = self.steps = 0
+    #     self.done = False
+    #     self._reset()
+    #     self.define_spaces()  # Second, to link the obs and actions to the vehicles once the scene is created
+    #     return self.observation_type.observe() # the observation of the reset state
+    def reset(self, *, seed=None, options=None):
+        super().reset(seed=seed)  # gọi reset cha nếu có
+
+        if seed is not None:
+            self.np_random, seed = seeding.np_random(seed)
+
         self.update_metadata()
         self.define_spaces()  # First, to set the controlled vehicle class depending on action space
         self.time = self.steps = 0
         self.done = False
         self._reset()
         self.define_spaces()  # Second, to link the obs and actions to the vehicles once the scene is created
-        return self.observation_type.observe() # the observation of the reset state
+
+        observation = self.observation_type.observe()  # the observation of the reset state
+        info = {}  # dictionary thêm thông tin, có thể để trống
+
+        return observation, info
 
     # Reset the scene: roads and vehicles. This method must be overloaded by the environments.
     def _reset(self) -> None:
@@ -220,7 +237,7 @@ class AbstractEnv(gym.Env):
             actions.append(self.action_type.actions_indexes['SLOWER'])
         return actions # the list of available actions
 
-    def set_monitor(self, monitor: gym.wrappers.Monitor):
+    def set_monitor(self, monitor: gym.wrappers.RecordVideo):
         self._monitor = monitor
         self.update_metadata()
 

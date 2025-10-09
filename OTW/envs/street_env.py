@@ -1,5 +1,5 @@
 import numpy as np
-from gym.envs.registration import register
+from gymnasium.envs.registration import register
 import os
 from OTW.common import utils, abstract, action
 from OTW.road.road import RoadNetwork, Road
