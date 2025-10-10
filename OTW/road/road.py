@@ -102,7 +102,7 @@ class StraightLane(AbstractLane):
                  width: float = AbstractLane.DEFAULT_WIDTH,
                  line_types: Tuple[LineType, LineType] = None,
                  forbidden: bool = False,
-                 speed_limit: float = 15,
+                 speed_limit: float = 30,
                  priority: int = 0) -> None:
 
         self.start = np.array(start)    # the lane starting position [m]
@@ -330,7 +330,7 @@ class RoadNetwork(object):
 
     @staticmethod
     def straight_road_network(lanes: int = 3, start: float = 0, length: float = 10000, angle: float = 0,
-                              speed_limit: float = 15, nodes_str: Optional[Tuple[str, str]] = None,
+                              speed_limit: float = 30, nodes_str: Optional[Tuple[str, str]] = None,
                               net: Optional['RoadNetwork'] = None) -> 'RoadNetwork':
         net = net or RoadNetwork()
         nodes_str = nodes_str or ("0", "1")
@@ -421,6 +421,38 @@ class Road(object):
                     v_rear = v
         return v_front, v_rear
 
+    def neighbour_vehicles(self, vehicle: 'kinematics.Vehicle', lane_index: LaneIndex = None) \
+            -> Tuple[Optional['kinematics.Vehicle'], Optional['kinematics.Vehicle']]:
+        """
+        Find the preceding and following vehicles of a given vehicle.
+
+        :param vehicle: the vehicle whose neighbours must be found
+        :param lane_index: the lane on which to look for preceding and following vehicles.
+                     It doesn't have to be the current vehicle lane but can also be another lane, in which case the
+                     vehicle is projected on it considering its local coordinates in the lane.
+        :return: its preceding vehicle, its following vehicle
+        """
+        lane_index = lane_index or vehicle.lane_index
+        if not lane_index:
+            return None, None
+        lane = self.network.get_lane(lane_index)
+        s = self.network.get_lane(lane_index).local_coordinates(vehicle.position)[0]
+        s_front = s_rear = None
+        v_front = v_rear = None
+        for v in self.vehicles + self.objects:
+            if v is not vehicle and not isinstance(v, Landmark):  # self.network.is_connected_road(v.lane_index,
+                # lane_index, same_lane=True):
+                s_v, lat_v = lane.local_coordinates(v.position)
+                if not lane.on_lane(v.position, s_v, lat_v, margin=1):
+                    continue
+                if s <= s_v and (s_front is None or s_v <= s_front):
+                    s_front = s_v
+                    v_front = v
+                if s_v < s and (s_rear is None or s_v > s_rear):
+                    s_rear = s_v
+                    v_rear = v
+        return v_front, v_rear
+    
     def __repr__(self):
         return self.vehicles.__repr__()
 

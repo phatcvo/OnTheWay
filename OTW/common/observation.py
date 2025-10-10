@@ -1,7 +1,7 @@
 from typing import List, Dict, TYPE_CHECKING, Optional
 from functools import partial
 
-from gymnasium import spaces
+from gym import spaces
 import numpy as np
 import pandas as pd
 
@@ -98,17 +98,21 @@ class KinematicObservation(ObservationType):
                                                          sort=self.order == "sorted")
         if close_vehicles:
             origin = self.observer_vehicle if not self.absolute else None
-            df = pd.concat([pd.DataFrame.from_records(
-                [v.to_dict(origin, observe_intentions=self.observe_intentions)
-                 for v in close_vehicles[-self.vehicles_count + 1:]])[self.features]],
-                           ignore_index=True)
+            new_data = pd.DataFrame.from_records([v.to_dict(origin, observe_intentions=self.observe_intentions)
+                 for v in close_vehicles[-self.vehicles_count + 1:]])
+            df = pd.concat([df, new_data], ignore_index=True)
+            # df = df.append(pd.DataFrame.from_records([v.to_dict(origin, observe_intentions=self.observe_intentions) for v in close_vehicles[-self.vehicles_count + 1:]])[self.features], ignore_index=True)
         # Normalize and clip
         if self.normalize:
             df = self.normalize_obs(df)
         # Fill missing rows
         if df.shape[0] < self.vehicles_count:
             rows = np.zeros((self.vehicles_count - df.shape[0], len(self.features)))
-            df = pd.concat([pd.DataFrame(data=rows, columns=self.features)], ignore_index=True)
+            # Assuming df is your original DataFrame
+            new_data = pd.DataFrame.from_records(data=rows, columns=self.features)
+            # Use pandas.concat to combine the DataFrames
+            df = pd.concat([df, new_data], ignore_index=True)
+            # df = df.append(pd.DataFrame(data=rows, columns=self.features), ignore_index=True)
         # Reorder
         df = df[self.features]
         obs = df.values.copy()
@@ -116,8 +120,6 @@ class KinematicObservation(ObservationType):
             self.env.np_random.shuffle(obs[1:])
         # Flatten
         return obs.astype(self.space().dtype)
-
-
 
 
 def observation_factory(env: 'abstract.AbstractEnv', config: dict) -> ObservationType:

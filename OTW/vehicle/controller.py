@@ -188,7 +188,7 @@ class MDPVehicle(ControlledVehicle):
     def speed_to_index_default(cls, speed: float) -> int: # an input speed [m/s]
         x = (speed - cls.SPEED_MIN) / (cls.SPEED_MAX - cls.SPEED_MIN)
         # print(f'controller/speed2index_def {x}')
-        return int(np.clip(np.round(x * (cls.SPEED_COUNT - 1)), 0, cls.SPEED_COUNT - 1)) # the index of the closest speed allowed []
+        return np.int(np.clip(np.round(x * (cls.SPEED_COUNT - 1)), 0, cls.SPEED_COUNT - 1)) # the index of the closest speed allowed []
 
     @classmethod
     def get_speed_index(cls, vehicle: Vehicle) -> int:
@@ -410,4 +410,190 @@ class IDMVehicle(ControlledVehicle):
                 return -self.COMFORT_ACC_MAX / 2
         return acceleration # suggested acceleration to recover from being stuck
 
+class LinearVehicle(IDMVehicle):
 
+    """A Vehicle whose longitudinal and lateral controllers are linear with respect to parameters."""
+
+    ACCELERATION_PARAMETERS = [0.3, 0.3, 2.0]
+    STEERING_PARAMETERS = [ControlledVehicle.KP_HEADING, ControlledVehicle.KP_HEADING * ControlledVehicle.KP_LATERAL]
+
+    ACCELERATION_RANGE = np.array([0.5*np.array(ACCELERATION_PARAMETERS), 1.5*np.array(ACCELERATION_PARAMETERS)])
+    STEERING_RANGE = np.array([np.array(STEERING_PARAMETERS) - np.array([0.07, 1.5]),
+                               np.array(STEERING_PARAMETERS) + np.array([0.07, 1.5])])
+
+    TIME_WANTED = 2.5
+
+    def __init__(self,
+                 road: Road,
+                 position: Vector,
+                 heading: float = 0,
+                 speed: float = 0,
+                 target_lane_index: int = None,
+                 target_speed: float = None,
+                 route: Route = None,
+                 enable_lane_change: bool = True,
+                 timer: float = None,
+                 data: dict = None):
+        super().__init__(road, position, heading, speed, target_lane_index, target_speed, route,
+                         enable_lane_change, timer)
+        self.data = data if data is not None else {}
+        self.collecting_data = True
+
+    def act(self, action: Union[dict, str] = None):
+        if self.collecting_data:
+            self.collect_data()
+        super().act(action)
+
+    def randomize_behavior(self):
+        ua = self.road.np_random.uniform(size=np.shape(self.ACCELERATION_PARAMETERS))
+        self.ACCELERATION_PARAMETERS = self.ACCELERATION_RANGE[0] + ua*(self.ACCELERATION_RANGE[1] -
+                                                                        self.ACCELERATION_RANGE[0])
+        ub = self.road.np_random.uniform(size=np.shape(self.STEERING_PARAMETERS))
+        self.STEERING_PARAMETERS = self.STEERING_RANGE[0] + ub*(self.STEERING_RANGE[1] - self.STEERING_RANGE[0])
+
+    def acceleration(self,
+                     ego_vehicle: ControlledVehicle,
+                     front_vehicle: Vehicle = None,
+                     rear_vehicle: Vehicle = None) -> float:
+        """
+        Compute an acceleration command with a Linear Model.
+
+        The acceleration is chosen so as to:
+        - reach a target speed;
+        - reach the speed of the leading (resp following) vehicle, if it is lower (resp higher) than ego's;
+        - maintain a minimum safety distance w.r.t the leading vehicle.
+
+        :param ego_vehicle: the vehicle whose desired acceleration is to be computed. It does not have to be an
+                            Linear vehicle, which is why this method is a class method. This allows a Linear vehicle to
+                            reason about other vehicles behaviors even though they may not Linear.
+        :param front_vehicle: the vehicle preceding the ego-vehicle
+        :param rear_vehicle: the vehicle following the ego-vehicle
+        :return: the acceleration command for the ego-vehicle [m/s2]
+        """
+        return float(np.dot(self.ACCELERATION_PARAMETERS,
+                            self.acceleration_features(ego_vehicle, front_vehicle, rear_vehicle)))
+
+    def acceleration_features(self, ego_vehicle: ControlledVehicle,
+                              front_vehicle: Vehicle = None,
+                              rear_vehicle: Vehicle = None) -> np.ndarray:
+        vt, dv, dp = 0, 0, 0
+        if ego_vehicle:
+            vt = ego_vehicle.target_speed - ego_vehicle.speed
+            d_safe = self.DISTANCE_WANTED + np.maximum(ego_vehicle.speed, 0) * self.TIME_WANTED
+            if front_vehicle:
+                d = ego_vehicle.lane_distance_to(front_vehicle)
+                dv = min(front_vehicle.speed - ego_vehicle.speed, 0)
+                dp = min(d - d_safe, 0)
+        return np.array([vt, dv, dp])
+
+    def steering_control(self, target_lane_index: LaneIndex) -> float:
+        """
+        Linear controller with respect to parameters.
+
+        Overrides the non-linear controller ControlledVehicle.steering_control()
+
+        :param target_lane_index: index of the lane to follow
+        :return: a steering wheel angle command [rad]
+        """
+        return float(np.dot(np.array(self.STEERING_PARAMETERS), self.steering_features(target_lane_index)))
+
+    def steering_features(self, target_lane_index: LaneIndex) -> np.ndarray:
+        """
+        A collection of features used to follow a lane
+
+        :param target_lane_index: index of the lane to follow
+        :return: a array of features
+        """
+        lane = self.road.network.get_lane(target_lane_index)
+        lane_coords = lane.local_coordinates(self.position)
+        lane_next_coords = lane_coords[0] + self.speed * self.TAU_PURSUIT
+        lane_future_heading = lane.heading_at(lane_next_coords)
+        features = np.array([wrap_to_pi(lane_future_heading - self.heading) *
+                             self.LENGTH / not_zero(self.speed),
+                             -lane_coords[1] * self.LENGTH / (not_zero(self.speed) ** 2)])
+        return features
+
+    def longitudinal_structure(self):
+        # Nominal dynamics: integrate speed
+        A = np.array([
+            [0, 0, 1, 0],
+            [0, 0, 0, 1],
+            [0, 0, 0, 0],
+            [0, 0, 0, 0]
+        ])
+        # Target speed dynamics
+        phi0 = np.array([
+            [0, 0, 0, 0],
+            [0, 0, 0, 0],
+            [0, 0, -1, 0],
+            [0, 0, 0, -1]
+        ])
+        # Front speed control
+        phi1 = np.array([
+            [0, 0, 0, 0],
+            [0, 0, 0, 0],
+            [0, 0, -1, 1],
+            [0, 0, 0, 0]
+        ])
+        # Front position control
+        phi2 = np.array([
+            [0, 0, 0, 0],
+            [0, 0, 0, 0],
+            [-1, 1, -self.TIME_WANTED, 0],
+            [0, 0, 0, 0]
+        ])
+        # Disable speed control
+        front_vehicle, _ = self.road.neighbour_vehicles(self)
+        if not front_vehicle or self.speed < front_vehicle.speed:
+            phi1 *= 0
+
+        # Disable front position control
+        if front_vehicle:
+            d = self.lane_distance_to(front_vehicle)
+            if d != self.DISTANCE_WANTED + self.TIME_WANTED * self.speed:
+                phi2 *= 0
+        else:
+            phi2 *= 0
+
+        phi = np.array([phi0, phi1, phi2])
+        return A, phi
+
+    def lateral_structure(self):
+        A = np.array([
+            [0, 1],
+            [0, 0]
+        ])
+        phi0 = np.array([
+            [0, 0],
+            [0, -1]
+        ])
+        phi1 = np.array([
+            [0, 0],
+            [-1, 0]
+        ])
+        phi = np.array([phi0, phi1])
+        return A, phi
+
+    def collect_data(self):
+        """Store features and outputs for parameter regression."""
+        self.add_features(self.data, self.target_lane_index)
+
+    def add_features(self, data, lane_index, output_lane=None):
+
+        front_vehicle, rear_vehicle = self.road.neighbour_vehicles(self)
+        features = self.acceleration_features(self, front_vehicle, rear_vehicle)
+        output = np.dot(self.ACCELERATION_PARAMETERS, features)
+        if "longitudinal" not in data:
+            data["longitudinal"] = {"features": [], "outputs": []}
+        data["longitudinal"]["features"].append(features)
+        data["longitudinal"]["outputs"].append(output)
+
+        if output_lane is None:
+            output_lane = lane_index
+        features = self.steering_features(lane_index)
+        out_features = self.steering_features(output_lane)
+        output = np.dot(self.STEERING_PARAMETERS, out_features)
+        if "lateral" not in data:
+            data["lateral"] = {"features": [], "outputs": []}
+        data["lateral"]["features"].append(features)
+        data["lateral"]["outputs"].append(output)

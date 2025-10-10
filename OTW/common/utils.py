@@ -20,8 +20,12 @@ def lmap(v: float, x: Interval, y: Interval) -> float:
 
 def class_from_path(path: str) -> Callable:
     module_name, class_name = path.rsplit(".", 1)
-    class_object = getattr(importlib.import_module(module_name), class_name)
+    # print ("+++", module_name)
+    # print ("==", class_name)
+    class_object = getattr(importlib.import_module(module_name), class_name)  
     return class_object
+
+
 
 def constrain(x: float, a: float, b: float) -> np.ndarray:
     return np.clip(x, a, b)

@@ -3,7 +3,7 @@ import numpy as np
 from typing import Callable, Union
 from OTW.road.road import Road, LaneIndex, Route
 from OTW.common.utils import confidence_polytope, is_consistent_dataset, Vector
-from OTW.vehicle.controller import LinearVehicle
+from controller import LinearVehicle
 from OTW.vehicle.prediction import IntervalVehicle, Polytope
 
 # Estimator for the parameter of a LinearVehicle.

@@ -1,16 +1,20 @@
 import copy
 import os
 from typing import List, Tuple, Optional, Callable
-import gymnasium as gym
-from gymnasium import Wrapper
-from gymnasium.utils import seeding
+import gym
+from gym import Wrapper
+from gym.utils import seeding
 import numpy as np
+import matplotlib.pyplot as plt
+import pandas as pd
+import seaborn as sns
+sns.set()
 
 from OTW.common.utils import class_from_path
 from OTW.common.action import action_factory, Action, DiscreteMetaAction, ActionType
 from OTW.common.observation import observation_factory, ObservationType
 from OTW.common.graphics import EnvViewer
-from OTW.vehicle.controller import MDPVehicle, IDMVehicle
+from controller import MDPVehicle, IDMVehicle
 from OTW.vehicle.kinematics import Vehicle
 
 Observation = np.ndarray
@@ -19,7 +23,7 @@ Observation = np.ndarray
 class AbstractEnv(gym.Env):
     observation_type: ObservationType
     action_type: ActionType
-    _monitor: Optional[gym.wrappers.RecordVideo]
+    _monitor: Optional[gym.wrappers.Monitor]
     metadata = {
         'render.modes': ['human', 'rgb_array'],
     }
@@ -57,6 +61,7 @@ class AbstractEnv(gym.Env):
         self._monitor = None
         self.rendering_mode = 'human'
         self.enable_auto_render = False
+        self.rewards = []
 
         self.reset()
 
@@ -74,7 +79,7 @@ class AbstractEnv(gym.Env):
             "simulation_frequency": 15,  # [Hz]
             "policy_frequency": 1,  # [Hz]
             "offscreen_rendering": os.environ.get("OFFSCREEN_RENDERING", "0") == "1",
-            "real_time_rendering": False,
+            "real_time_rendering": False
         }
 
     def seed(self, seed: int = None) -> List[int]:
@@ -85,10 +90,11 @@ class AbstractEnv(gym.Env):
         if config:
             self.config.update(config)
 
-    def update_metadata(self, video_real_time_ratio = 2):
+    def update_metadata(self, video_real_time_ratio = 1):
         frames_freq = self.config["simulation_frequency"] \
             if self._monitor else self.config["policy_frequency"]
         self.metadata['video.frames_per_second'] = video_real_time_ratio * frames_freq
+        # print("frames_freq", frames_freq)
 
     # Set the types and spaces of observation and action from config.
     def define_spaces(self) -> None:
@@ -125,31 +131,14 @@ class AbstractEnv(gym.Env):
         raise NotImplementedError # the constraint signal, the alternate (constraint-free) reward
 
     # Reset the environment to it's initial configuration
-    # def reset(self) -> Observation:
-    #     self.update_metadata()
-    #     self.define_spaces()  # First, to set the controlled vehicle class depending on action space
-    #     self.time = self.steps = 0
-    #     self.done = False
-    #     self._reset()
-    #     self.define_spaces()  # Second, to link the obs and actions to the vehicles once the scene is created
-    #     return self.observation_type.observe() # the observation of the reset state
-    def reset(self, *, seed=None, options=None):
-        super().reset(seed=seed)  # gọi reset cha nếu có
-
-        if seed is not None:
-            self.np_random, seed = seeding.np_random(seed)
-
+    def reset(self) -> Observation:
         self.update_metadata()
         self.define_spaces()  # First, to set the controlled vehicle class depending on action space
         self.time = self.steps = 0
         self.done = False
         self._reset()
         self.define_spaces()  # Second, to link the obs and actions to the vehicles once the scene is created
-
-        observation = self.observation_type.observe()  # the observation of the reset state
-        info = {}  # dictionary thêm thông tin, có thể để trống
-
-        return observation, info
+        return self.observation_type.observe() # the observation of the reset state
 
     # Reset the scene: roads and vehicles. This method must be overloaded by the environments.
     def _reset(self) -> None:
@@ -165,38 +154,54 @@ class AbstractEnv(gym.Env):
 
         self.steps += 1
         self._simulate(action) # action: the action performed by the ego-vehicle
-
+        # print("Step: ", self.steps)
         obs = self.observation_type.observe()
         reward = self._reward(action)
         terminal = self._is_terminal()
         info = self._info(obs, action)
-
+        
+        # self.rewards.append(reward)
+        # print("reward=====: ", self.rewards)
+        # self.display()
         return obs, reward, terminal, info # a tuple (observation, reward, terminal, info)
-# =================================================================================================
+    
+    
+    # def display(self):
+    #     plt.figure(num='Rewards')
+    #     plt.clf()
+    #     plt.title('Total reward')
+    #     plt.xlabel('Episode')
+    #     plt.ylabel('Reward')
+
+    #     rewards = pd.Series(self.rewards)
+    #     means = rewards.rolling(window=100).mean()
+    #     plt.plot(rewards)
+    #     plt.plot(means)
+    #     plt.pause(0.001)
+    #     plt.plot(block=False)
+#  =================================================================================================
     def _simulate(self, action: Optional[Action] = None) -> None:
         frames = int(self.config["simulation_frequency"] // self.config["policy_frequency"])
+        print ("frames: ", frames)
         for frame in range(frames):
             # Forward action to the vehicle
-            if action is not None \
-                    and not self.config["manual_control"] \
-                    and self.time % int(self.config["simulation_frequency"] // self.config["policy_frequency"]) == 0:
+            if action is not None and not self.config["manual_control"] and self.time % int(self.config["simulation_frequency"] // self.config["policy_frequency"]) == 0:
                 self.action_type.act(action)
 
             self.road.act()
             self.road.step(1 / self.config["simulation_frequency"])
             self.time += 1
-
+            # print("time: ", self.time)
             # Automatically render intermediate simulation steps if a viewer has been launched
             # Ignored if the rendering is done offscreen
             if frame < frames - 1:  # Last frame will be rendered through env.render() as usual
                 self._automatic_rendering()
-
         self.enable_auto_render = False
+
 
     # Render the environment. Create a viewer if none exists, and use it to render an image.
     def render(self, mode: str = 'human') -> Optional[np.ndarray]:
         self.rendering_mode = mode # mode: the rendering mode
-
         if self.viewer is None:
             self.viewer = EnvViewer(self)
         self.enable_auto_render = True
@@ -237,7 +242,7 @@ class AbstractEnv(gym.Env):
             actions.append(self.action_type.actions_indexes['SLOWER'])
         return actions # the list of available actions
 
-    def set_monitor(self, monitor: gym.wrappers.RecordVideo):
+    def set_monitor(self, monitor: gym.wrappers.Monitor):
         self._monitor = monitor
         self.update_metadata()
 
@@ -261,8 +266,9 @@ class AbstractEnv(gym.Env):
 
     # Change the type of all vehicles on the road
     def change_vehicles(self, vehicle_class_path: str) -> 'AbstractEnv':
-        # The path of the class of behavior for other vehicles.  Example: "OTW.vehicle.behavior.IDMVehicle"
+        # The path of the class of behavior for other vehicles.  Example: "OTW.vehicle.controller.IDMVehicle"
         vehicle_class = class_from_path(vehicle_class_path)
+        # vehicle_class = IntervalVehicle
 
         env_copy = copy.deepcopy(self)
         vehicles = env_copy.road.vehicles

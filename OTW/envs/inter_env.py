@@ -1,4 +1,4 @@
-from gymnasium.envs.registration import register
+from gym.envs.registration import register
 from typing import Dict, Tuple
 import numpy as np
 
@@ -6,7 +6,7 @@ from OTW.common import utils
 from OTW.common.abstract import AbstractEnv
 from OTW.road.road import RoadNetwork, LineType, StraightLane, CircularLane, AbstractLane
 from OTW.vehicle.kinematics import Vehicle
-from OTW.vehicle.controller import ControlledVehicle
+from controller import ControlledVehicle
 from OTW.road.regulations import RegulatedRoad
 
 

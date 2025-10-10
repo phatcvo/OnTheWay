@@ -21,12 +21,10 @@ class EnvViewer(object):
         self.offscreen = self.config["offscreen_rendering"]
 
         pygame.init()
-        pygame.display.set_caption("OTW-env-2.4 made in RML")
+        pygame.display.set_caption("OTW-RML")
         panel_size = (self.config["screen_width"], self.config["screen_height"])
 
-        # A display is not mandatory to draw things. Ignoring the display.set_mode()
-        # instruction allows the drawing to be done on surfaces without
-        # handling a screen display, useful for e.g. cloud computing
+        # A display is not mandatory to draw things. Ignoring the display.set_mode() instruction allows the drawing to be done on surfaces without handling a screen display, useful for e.g. cloud computing
         if not self.offscreen:
             self.screen = pygame.display.set_mode([self.config["screen_width"], self.config["screen_height"]])
 
@@ -63,10 +61,7 @@ class EnvViewer(object):
         if isinstance(self.env.action_type, action.DiscreteMetaAction):
             actions = [self.env.action_type.actions[a] for a in actions]
         if len(actions) > 1:
-            self.vehicle_trajectory = self.env.vehicle.predict_trajectory(actions,
-                                                                          1 / self.env.config["policy_frequency"],
-                                                                          1 / 3 / self.env.config["policy_frequency"],
-                                                                          1 / self.env.config["simulation_frequency"])
+            self.vehicle_trajectory = self.env.vehicle.predict_trajectory(actions,1 / self.env.config["policy_frequency"], 1 / 3 / self.env.config["policy_frequency"], 1 / self.env.config["simulation_frequency"])
 
     # Handle pygame events by forwarding them to the display and environment vehicle.
     def handle_events(self) -> None:
@@ -86,7 +81,7 @@ class EnvViewer(object):
 
         if self.vehicle_trajectory:
             VehicleGraphics.display_trajectory(self.vehicle_trajectory, self.sim_surface, offscreen=self.offscreen)
-        RoadGraphics.display_road_objects(self.env.road, self.sim_surface, offscreen=self.offscreen)
+        # RoadGraphics.display_road_objects(self.env.road, self.sim_surface, offscreen=self.offscreen)
 
         if self.agent_display:
             self.agent_display(self.agent_surface, self.sim_surface)
@@ -96,9 +91,7 @@ class EnvViewer(object):
                 else:
                     self.screen.blit(self.agent_surface, (self.config["screen_width"], 0))
 
-        RoadGraphics.display_traffic(self.env.road, self.sim_surface,
-                                              simulation_frequency=self.env.config["simulation_frequency"],
-                                              offscreen=self.offscreen)
+        RoadGraphics.display_traffic(self.env.road, self.sim_surface, simulation_frequency=self.env.config["simulation_frequency"],  offscreen=self.offscreen)
 
         if not self.offscreen:
             self.screen.blit(self.sim_surface, (0, 0))
@@ -109,7 +102,12 @@ class EnvViewer(object):
         if self.SAVE_IMAGES and self.directory:
             pygame.image.save(self.sim_surface, str(self.directory / "OTW-env_{}.png".format(self.frame)))
             self.frame += 1
-
+            
+    # The rendered image as a rgb array.
+    def get_image(self) -> np.ndarray:
+        surface = self.screen if self.config["render_agent"] and not self.offscreen else self.sim_surface
+        data = pygame.surfarray.array3d(surface)  # in W x H x C channel convention
+        return np.moveaxis(data, 0, 1)
 
     # the world position of the center of the displayed window.
     def window_position(self) -> np.ndarray:

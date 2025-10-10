@@ -1,11 +1,10 @@
 from itertools import product
 from typing import TYPE_CHECKING, Optional, Union, Tuple, Callable
-from gymnasium import spaces
+from gym import spaces
 import numpy as np
 
 from OTW.common import utils
-from OTW.vehicle import kinematics
-from OTW.vehicle import controller
+from OTW.vehicle import kinematics, controller
 
 if TYPE_CHECKING:
     from OTW.common.abstract import AbstractEnv
@@ -69,10 +68,7 @@ class DiscreteMetaAction(ActionType):
         super().__init__(env)
         self.longitudinal = longitudinal
         self.lateral = lateral
-        self.actions = self.ACTIONS_ALL \
-            if longitudinal and lateral else self.ACTIONS_LONGITUDINAL \
-            if longitudinal else self.ACTIONS_LATERAL \
-            if lateral else None
+        self.actions = self.ACTIONS_ALL if longitudinal and lateral else self.ACTIONS_LONGITUDINAL if longitudinal else self.ACTIONS_LATERAL if lateral else None
         if self.actions is None:
             raise ValueError("At least longitudinal or lateral actions must be included")
         self.actions_indexes = {v: k for k, v in self.actions.items()}

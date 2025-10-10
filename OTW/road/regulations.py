@@ -3,7 +3,7 @@ import numpy as np
 from typing import List, Tuple
 from OTW.common import utils
 from OTW.road.road import Road, RoadNetwork
-from OTW.vehicle.controller import ControlledVehicle, MDPVehicle
+from controller import ControlledVehicle, MDPVehicle
 from OTW.vehicle.kinematics import Vehicle, Obstacle
 
 class RegulatedRoad(Road):

@@ -1,16 +1,18 @@
 import numpy as np
-from gymnasium.envs.registration import register
+from gym.envs.registration import register
 import os
 from OTW.common import utils, abstract, action
 from OTW.road.road import RoadNetwork, Road
-from OTW.vehicle.controller import ControlledVehicle
+from controller import ControlledVehicle
+import matplotlib.pyplot as plt
+import pandas as pd
+import seaborn as sns
+sns.set()
 
 
-
-# The vehicle is driving on a straight highway with several lanes
+# The vehicle is driving on a straight street with several lanes
 # and is rewarded for reaching a high speed, staying on the rightmost lanes and avoiding collisions.
 class StreetEnv(abstract.AbstractEnv):
-
     @classmethod
     def default_config(cls) -> dict:
         config = super().default_config()
@@ -20,26 +22,30 @@ class StreetEnv(abstract.AbstractEnv):
             "lanes_count": 3,
             "vehicles_count": 50,
             "controlled_vehicles": 1,
-            "initial_lane_id": 1,
-            "duration": 100,  # [s]
-            "ego_spacing": 1.5,
+            "initial_lane_id": None,
+            "duration": 50,  # [s]
+            "ego_spacing": 2,
             "vehicles_density": 1,
             "collision_reward": -1,    # The reward received when colliding with a vehicle.
-            "right_lane_reward": 0.1,  # The reward received when driving on the right-most lanes, linearly mapped to zero for other lanes.
+            "right_lane_reward": 0.0,  # The reward received when driving on the right-most lanes, linearly mapped to zero for other lanes.
             "high_speed_reward": 0.4,  # The reward received when driving at full speed, linearly mapped to zero for lower speeds according to config["reward_speed_range"].
-            "lane_change_reward": 0,   # The reward received at each lane change action.
-            "reward_speed_range": [0, 30], # [m/s] The reward for high speed is mapped linearly from this range to [0, HIGH_SPEED_REWARD].
+            "lane_change_reward": -0.1,   # The reward received at each lane change action.
+            "reward_speed_range": [10, 30], # [m/s] The reward for high speed is mapped linearly from this range to [0, HIGH_SPEED_REWARD].
             "offroad_terminal": False,
             "other_vehicles_type": "OTW.vehicle.controller.IDMVehicle",
             "screen_width": 600,  # [px]
             "screen_height": 800,  # [px]
             "centering_position": [-1.0, 0.2],
             "scaling": 8.5,
-            "show_trajectories": False,
-            "render_agent": True,
+            "show_trajectories": False, #
+            "render_agent": True, #
+            "normalize_reward": True,
+            "offroad_terminal": False,
             "manual_control": False,
+            "real_time_rendering": False
         })
         return config
+
 
     # Create a road composed of straight adjacent lanes.
     def _create_road(self) -> None:
@@ -68,31 +74,29 @@ class StreetEnv(abstract.AbstractEnv):
             # print(vehicle)
 
     # The reward is defined to foster driving at high speed, on the rightmost lanes, and to avoid collisions.
+    
     def _reward(self, action: action.Action) -> float: # the last action performed
 
         neighbors = self.road.network.all_side_lanes(self.vehicle.lane_index)
-        lane = self.vehicle.target_lane_index[2] if isinstance(self.vehicle, ControlledVehicle) \
-            else self.vehicle.lane_index[2]
-        scaled_speed = utils.lmap(self.vehicle.speed, self.config["reward_speed_range"], [0, 1])
-        reward = self.config["collision_reward"] * self.vehicle.crashed \
-                 + self.config["right_lane_reward"] * lane / max(len(neighbors) - 1, 1) \
-                 + self.config["high_speed_reward"] * np.clip(scaled_speed, 0, 1)
+        lane = self.vehicle.target_lane_index[2] if isinstance(self.vehicle, ControlledVehicle) else self.vehicle.lane_index[2]
 
-        reward = utils.lmap(reward, [self.config["collision_reward"], self.config["high_speed_reward"]
-                                     + self.config["right_lane_reward"]], [0, 1])
-        reward = 0 if not self.vehicle.on_road else reward
-
-        print('env/crashed', self.config["collision_reward"] * self.vehicle.crashed,
-              'env/lane:', self.config["right_lane_reward"] * lane / max(len(neighbors) - 1, 1),
-              'env/speed', self.config["high_speed_reward"] * np.clip(scaled_speed, 0, 1),
-              'Total reward', reward)
+        forward_speed = self.vehicle.speed * np.cos(self.vehicle.heading)
+        scaled_speed = utils.lmap(forward_speed, self.config["reward_speed_range"], [0, 1])
+        lane_change = self.config["lane_change_reward"] * lane / max(len(neighbors) - 1, 1)
+        reward = \
+            + self.config["collision_reward"] * self.vehicle.crashed \
+            + self.config["right_lane_reward"] * lane / max(len(neighbors) - 1, 1) \
+            + self.config["high_speed_reward"] * np.clip(scaled_speed, 0, 1) \
+            + lane_change
+        reward = utils.lmap(reward, [self.config["collision_reward"], self.config["high_speed_reward"] + self.config["right_lane_reward"]], [0, 1])
+        
+        reward = 0 if not self.vehicle.on_road else reward 
 
         return reward # the corresponding reward
 
     # The episode is over if the ego vehicle crashed or the time is out
     def _is_terminal(self) -> bool:
-        return self.vehicle.crashed or self.steps >= self.config["duration"] or \
-               (self.config["offroad_terminal"] and not self.vehicle.on_road)
+        return self.vehicle.crashed or self.steps >= self.config["duration"] or (self.config["offroad_terminal"] and not self.vehicle.on_road)
 
     # The cost signal is the occurrence of collision
     def _cost(self, action: int) -> float:
@@ -101,6 +105,7 @@ class StreetEnv(abstract.AbstractEnv):
     def _reset(self) -> None:
         self._create_road()
         self._create_vehicles()
+        
 
 register(
     id='street-v1',
