@@ -1,0 +1,96 @@
+# =========================
+# 🐍 Python core ignores
+# =========================
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+env.bak/
+*.env
+
+
+# =========================
+# 🧱 Build / packaging
+# =========================
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+parts/
+sdist/
+var/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# =========================
+# 🧩 Logs / cache / data
+# =========================
+*.log
+logs/
+*.json
+*.csv
+tensorboard/
+wandb/
+tmp/
+.cache/
+__pycache__/
+
+# =========================
+# ⚙️ IDE / Editor
+# =========================
+.vscode/
+.idea/
+*.swp
+*.swo
+*.bak
+
+# =========================
+# 🧪 Testing / reports
+# =========================
+.coverage
+*.cover
+*.py,cover
+.hypothesis/
+pytest_cache/
+.tox/
+.nox/
+.mypy_cache/
+.pytest_cache/
+htmlcov/
+
+# =========================
+# 📦 Notebooks / outputs
+# =========================
+.ipynb_checkpoints
+*.ipynb
+notebooks/
+out/
+results/
+
+# =========================
+# 🤖 RL Training / models
+# =========================
+ppo_*
+dqn_*
+models/
+checkpoints/
+saves/
+runs/
+tb_logs/
+
+# =========================
+# 🔐 OS / misc
+# =========================
+.DS_Store
+Thumbs.db
+desktop.ini
+os
+~$
