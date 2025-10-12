@@ -21,7 +21,7 @@ python scripts/record_video.py --model models/ppo_street_best.zip --render human
 The *Kinematic Bicycle Model* are represented in the `~otw_env.core.vehicle.kinematics.Vehicle` class.
 
 $$
-\dot{x}=v\cos(\psi+\beta) \\\\ \dot{y}=v\sin(\psi+\beta) \\\\ \dot{v}=a \\\\ \dot{\psi}=\frac{v}{l}\sin\beta \\\\ \beta=\tan^{-1}(1/2\tan\delta), \\
+\dot{x}=v\cos(\psi+\beta) $$ $$ \dot{y}=v\sin(\psi+\beta) $$ $$ \dot{v}=a $$ $$ \dot{\psi}=\frac{v}{l}\sin\beta $$ $$ \beta=\tan^{-1}(1/2\tan\delta), \\
 $$
 
 where
@@ -59,13 +59,13 @@ The lateral controller is a simple proportional-derivative controller, combined 
 ### Position control
 
 $$
-v_{\text{lat},r} = -K_{p,\text{lat}} \Delta_{\text{lat}}, \\\\ \Delta \psi_{r} = \arcsin \left(\frac{v_{\text{lat},r}}{v}\right),
+v_{\text{lat},r} = -K_{p,\text{lat}} \Delta_{\text{lat}}, $$$$ \Delta \psi_{r} = \arcsin \left(\frac{v_{\text{lat},r}}{v}\right),
 $$
 
 ### Heading control
 
 $$
-\psi_r = \psi_L + \Delta \psi_{r}, \\\\ \dot{\psi}_r = K_{p,\psi} (\psi_r - \psi), \\\\ \delta = \arcsin \left(\frac{1}{2} \frac{l}{v} \dot{\psi}_r\right), \\
+\psi_r = \psi_L + \Delta \psi_{r}, $$$$ \dot{\psi}_r = K_{p,\psi} (\psi_r - \psi), $$$$ \delta = \arcsin \left(\frac{1}{2} \frac{l}{v} \dot{\psi}_r\right), \\
 $$
 
 where
@@ -122,9 +122,9 @@ where
 
 - $c$ is the center (ego-) vehicle, $o$ is its old follower *before* the lane change, and $n$ is its new follower *after* the lane change
 - $a, \tilde{a}$ are the acceleration of the vehicles *before* and *after* the lane change, respectively.
-- $p$ is a politeness coefficient, implemented as {py:attr}`IDMVehicle.POLITENESS`
-- $\Delta a_\text{th}$ the acceleration gain required to trigger a lane change, implemented as {py:attr}`IDMVehicle.LANE_CHANGE_MIN_ACC_GAIN`
-- $b_\text{safe}$ the maximum braking imposed to a vehicle during a cut-in, implemented as {py:attr}`IDMVehicle.LANE_CHANGE_MAX_BRAKING_IMPOSED`
+- $p$ is a politeness coefficient, implemented as `IDMVehicle.POLITENESS`
+- $\Delta a_\text{th}$ the acceleration gain required to trigger a lane change, implemented as `IDMVehicle.LANE_CHANGE_MIN_ACC_GAIN`
+- $b_\text{safe}$ the maximum braking imposed to a vehicle during a cut-in, implemented as `IDMVehicle.LANE_CHANGE_MAX_BRAKING_IMPOSED`
 
 It is implemented in the `IDMVehicle.mobil` method.
 
