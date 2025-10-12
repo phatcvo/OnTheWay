@@ -7,7 +7,7 @@ sudo apt update
 sudo apt install -y python3-venv python3-pip python3-dev
 
 # Create venv if not exists
-VENV_PATH=~/otw_env
+VENV_PATH=~/OTW
 
 if [ ! -d "$VENV_PATH" ]; then
     python3 -m venv $VENV_PATH
@@ -22,6 +22,7 @@ source $VENV_PATH/bin/activate
 pip install --upgrade pip setuptools wheel
 pip install -r requirements.txt
 pip install -e .
+pip install "protobuf<4" --force-reinstall
 
 echo ""
 echo "✅ [OTW] Environment setup complete!"

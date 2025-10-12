@@ -1,0 +1,10 @@
+numpy
+gymnasium
+matplotlib
+pygame
+pyyaml
+tqdm
+stable-baselines3>=2.3.0
+torch>=2.0
+tensorboard
+scipy

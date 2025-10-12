@@ -12,8 +12,7 @@ env/
 ENV/
 env.bak/
 *.env
-# custom virtual env path
-otw_env/
+
 
 # =========================
 # 🧱 Build / packaging
@@ -38,7 +37,6 @@ var/
 logs/
 *.json
 *.csv
-*.txt
 tensorboard/
 wandb/
 tmp/
@@ -67,7 +65,7 @@ pytest_cache/
 .mypy_cache/
 .pytest_cache/
 htmlcov/
-
+reports/
 # =========================
 # 📦 Notebooks / outputs
 # =========================
@@ -76,7 +74,7 @@ htmlcov/
 notebooks/
 output/
 results/
-
+videos
 # =========================
 # 🤖 RL Training / models
 # =========================
@@ -89,19 +87,13 @@ runs/
 tb_logs/
 
 # =========================
-# 🐳 Docker / CI
-# =========================
-Dockerfile
-docker-compose.yml
-*.dockerfile
-.docker/
-.cache/
-.gitlab-ci.yml
-
-# =========================
 # 🔐 OS / misc
 # =========================
 .DS_Store
 Thumbs.db
 desktop.ini
+os
 ~$
+
+gym_longicontrol/
+RobustPlanner/
