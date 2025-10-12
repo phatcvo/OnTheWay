@@ -87,7 +87,11 @@ steer on the road. They are implemented in the `~otw_env.core.vehicle.behavior_c
 The acceleration of the vehicle is given by the *Intelligent Driver Model* (IDM):
 
 $$
-\dot{v} = a\left[1-\left(\frac{v}{v_0}\right)^\delta - \left(\frac{d^*}{d}\right)^2\right] \\\\ d^* = d_0 + Tv + \frac{v\Delta v}{2\sqrt{ab}} \\
+\dot{v} = a\left[1-\left(\frac{v}{v_0}\right)^\delta - \left(\frac{d^*}{d}\right)^2\right]
+$$
+
+$$ 
+d^* = d_0 + Tv + \frac{v\Delta v}{2\sqrt{ab}} \\
 $$
 
 where $v$ is the vehicle velocity, $d$ is the distance to its front vehicle.
@@ -103,7 +107,7 @@ It is implemented in `IDMVehicle.acceleration` method.
 
 ## Lateral Behavior
 
-The discrete lane change decisions are given by the *Minimizing Overall Braking Induced by Lane change* (MOBIL) model from {cite}`Kesting2007`.
+The discrete lane change decisions are given by the *Minimizing Overall Braking Induced by Lane change* (MOBIL) model.
 According to this model, a vehicle decides to change lane when:
 
 - it is **safe** (do not cut-in):
