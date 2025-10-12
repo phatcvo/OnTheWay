@@ -21,7 +21,7 @@ python scripts/record_video.py --model models/ppo_street_best.zip --render human
 The *Kinematic Bicycle Model* are represented in the `~otw_env.core.vehicle.kinematics.Vehicle` class.
 
 $$
-\dot{x}=v\cos(\psi+\beta) \\ \dot{y}=v\sin(\psi+\beta) \\ \dot{v}=a \\ \dot{\psi}=\frac{v}{l}\sin\beta \\ \beta=\tan^{-1}(1/2\tan\delta), \\
+\dot{x}=v\cos(\psi+\beta) \\\\ \dot{y}=v\sin(\psi+\beta) \\\\ \dot{v}=a \\\\ \dot{\psi}=\frac{v}{l}\sin\beta \\\\ \beta=\tan^{-1}(1/2\tan\delta), \\
 $$
 
 where
@@ -59,13 +59,13 @@ The lateral controller is a simple proportional-derivative controller, combined 
 ### Position control
 
 $$
-v_{\text{lat},r} = -K_{p,\text{lat}} \Delta_{\text{lat}}, \\ \Delta \psi_{r} = \arcsin \left(\frac{v_{\text{lat},r}}{v}\right),
+v_{\text{lat},r} = -K_{p,\text{lat}} \Delta_{\text{lat}}, \\\\ \Delta \psi_{r} = \arcsin \left(\frac{v_{\text{lat},r}}{v}\right),
 $$
 
 ### Heading control
 
 $$
-\psi_r = \psi_L + \Delta \psi_{r}, \\ \dot{\psi}_r = K_{p,\psi} (\psi_r - \psi), \\ \delta = \arcsin \left(\frac{1}{2} \frac{l}{v} \dot{\psi}_r\right), \\
+\psi_r = \psi_L + \Delta \psi_{r}, \\\\ \dot{\psi}_r = K_{p,\psi} (\psi_r - \psi), \\\\ \delta = \arcsin \left(\frac{1}{2} \frac{l}{v} \dot{\psi}_r\right), \\
 $$
 
 where
@@ -84,10 +84,10 @@ steer on the road. They are implemented in the `~otw_env.core.vehicle.behavior_c
 
 ## Longitudinal Behavior
 
-The acceleration of the vehicle is given by the *Intelligent Driver Model* (IDM) 
+The acceleration of the vehicle is given by the *Intelligent Driver Model* (IDM):
 
 $$
-\dot{v} = a\left[1-\left(\frac{v}{v_0}\right)^\delta - \left(\frac{d^*}{d}\right)^2\right] \\ d^* = d_0 + Tv + \frac{v\Delta v}{2\sqrt{ab}} \\
+\dot{v} = a\left[1-\left(\frac{v}{v_0}\right)^\delta - \left(\frac{d^*}{d}\right)^2\right] \\\\ d^* = d_0 + Tv + \frac{v\Delta v}{2\sqrt{ab}} \\
 $$
 
 where $v$ is the vehicle velocity, $d$ is the distance to its front vehicle.
