@@ -11,9 +11,9 @@ from torch.utils.tensorboard import SummaryWriter
 import otw_env
 
 # === Config ===
-TOTAL_TIMESTEPS = 100000   # thay vì 20000 hoặc 100000
-EVAL_EPISODES = 2        # giảm số episode evaluate
-N_MODELS = 10             # chỉ chạy 5 model để test flow
+TOTAL_TIMESTEPS = 100000   
+EVAL_EPISODES = 15        # episode evaluate
+N_MODELS = 5             
 TENSORBOARD_DIR = "logs/tensorboard"
 REPORT_FILE = "reports/summary_gating.csv"
 
@@ -22,7 +22,7 @@ TTC_MIN_P95 = 1.5
 JERK_MAX_P95 = 5.0
 COLLISION_MAX_RATE = 0.05
 
-# === Helper: tạo environment ===
+# === Helper: create environment ===
 def make_env(render_mode=None):
     env = gym.make("street-v1")
     env.unwrapped.configure({
@@ -74,7 +74,7 @@ def run_eval(env, model, episodes=EVAL_EPISODES, dt=0.1):
 
         while not done:
             action, _ = model.predict(obs, deterministic=True)
-            obs, reward, done, info = env.step(action)   # ✅ chỉ 4 giá trị
+            obs, reward, done, info = env.step(action)  
             ep_r += reward
 
             base_env = env.envs[0].unwrapped if hasattr(env, "envs") else env.unwrapped
@@ -87,7 +87,7 @@ def run_eval(env, model, episodes=EVAL_EPISODES, dt=0.1):
                 if prev_accel is not None:
                     jerk = abs((accel - prev_accel) / dt)
                     jerk = abs((accel - prev_accel) / dt)
-                    jerk = min(jerk, 10.0)   # giới hạn giá trị cực lớn
+                    jerk = min(jerk, 10.0)   # limit max value
                     jerk_list.append(jerk)
                 prev_accel = accel
             prev_speed = speed
@@ -111,7 +111,7 @@ def run_eval(env, model, episodes=EVAL_EPISODES, dt=0.1):
     return compute_metrics(rewards, ttc_list, jerk_list, collisions)
 
 
-# === Helper: ghi CSV report ===
+# === Helper: write CSV report ===
 def save_report(metrics, model_idx, path=REPORT_FILE):
     os.makedirs(os.path.dirname(path), exist_ok=True)
     header = not os.path.exists(path)
@@ -136,16 +136,16 @@ if __name__ == "__main__":
     for i in range(1, N_MODELS + 1):
         print(f"\n🚀 Training PPO model {i}/{N_MODELS} ...")
 
-        # env = DummyVecEnv([lambda: make_env(render_mode=None)])
-        env = SubprocVecEnv([lambda: make_env(render_mode=None)]*4)
+        env = DummyVecEnv([lambda: make_env(render_mode=None)])
+        # env = SubprocVecEnv([lambda: make_env(render_mode=None)]*4) # 
         model = PPO(
             "MlpPolicy",                            # fully-connected with Kinematics vector
             env,
             policy_kwargs=dict(net_arch=[128, 128]),# network actor/critic iwth hidden N layers.
-            learning_rate=1e-4,                     # High → fast learn but easy viration/diverge; low → stable
-            n_steps=512,                            # step to rollout before updating; High → advantage estimation more smooth (low noise) ⇒ more stable but high RAM & latency. test: 128-512; train: 1024-2048
-            batch_size=32,                          # num of samples per minibatch; batch_size ≤ n_steps * n_envs
-            n_epochs=5,                             # High (5–10) improve by take an advantage data but easy overfit clip; low is fast train. Test: 1–3; train: 5–10.
+            learning_rate=3e-4,                     # High → fast learn but easy viration/diverge; low → stable
+            n_steps=1024,                            # step to rollout before updating; High → advantage estimation more smooth (low noise) ⇒ more stable but high RAM & latency. test: 128-512; train: 1024-2048
+            batch_size=64,                          # num of samples per minibatch; batch_size ≤ n_steps * n_envs
+            n_epochs=10,                             # High (5–10) improve by take an advantage data but easy overfit clip; low is fast train. Test: 1–3; train: 5–10.
             gamma=0.97,                             # discount factor. High (0.99) → far-sighted agent; low (0.95) → short-sighted agent; Test: 0.95; train highway: 0.97-0.99
             gae_lambda=0.95,                         # bias-variance trade-off near 1.0 → a small variance (smooth) but high bias; low → small bias but noisy. Train 0.95–0.98; 0.9 for test.
             clip_range=0.2,                         # threshold PPO clipping (|ratio−1| ≤ clip); small (0.1–0.2) → stable, small step learn; high → fast learn but easy to distroy policy. 0.2 is good default.

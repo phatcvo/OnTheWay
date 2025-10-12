@@ -56,7 +56,7 @@ class InterEnv(AbstractEnv):
             "arrived_reward": 1,
             "reward_speed_range": [7.0, 9.0],
             "normalize_reward": False,
-            "show_trajectories": False,
+            "show_trajectories": True,
             "other_vehicles_type": "OTW.vehicle.controller.IDMVehicle",
             "render_agent": True,
             "manual_control": False
