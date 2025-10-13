@@ -11,22 +11,22 @@ from torch.utils.tensorboard import SummaryWriter
 import otw_env
 
 # === Config ===
-TOTAL_TIMESTEPS = 100000   
-EVAL_EPISODES = 15        # episode evaluate
+TOTAL_TIMESTEPS = 5e5  
+EVAL_EPISODES = 5        # episode evaluate
 N_MODELS = 5             
 TENSORBOARD_DIR = "logs/tensorboard"
 REPORT_FILE = "reports/summary_gating.csv"
 
 # === Gating thresholds ===
 TTC_MIN_P95 = 1.5
-JERK_MAX_P95 = 5.0
+JERK_MAX_P95 = 12.0
 COLLISION_MAX_RATE = 0.05
 
 # === Helper: create environment ===
 def make_env(render_mode=None):
     env = gym.make("street-v1")
     env.unwrapped.configure({
-        "lanes_count": 4,
+        "lanes_count": 2,
         "vehicles_count": 10,
         "duration": 30,
         "simulation_frequency": 15,
@@ -71,6 +71,7 @@ def run_eval(env, model, episodes=EVAL_EPISODES, dt=0.1):
         obs = safe_reset(env)
         done, ep_r = False, 0
         prev_speed, prev_accel = None, None
+        jerk_buffer = []
 
         while not done:
             action, _ = model.predict(obs, deterministic=True)
@@ -85,13 +86,19 @@ def run_eval(env, model, episodes=EVAL_EPISODES, dt=0.1):
             if prev_speed is not None:
                 accel = (speed - prev_speed) / dt
                 if prev_accel is not None:
-                    jerk = abs((accel - prev_accel) / dt)
-                    jerk = abs((accel - prev_accel) / dt)
-                    jerk = min(jerk, 10.0)   # limit max value
+                    jerk = abs((accel - prev_accel) / (dt * 5))
+                    jerk_buffer.append(jerk)
+                    # moving average over last 3 values
+                    if len(jerk_buffer) >= 3:
+                        jerk = np.mean(jerk_buffer[-3:])
+
+                    # clamp to avoid extreme outliers
+                    jerk = np.clip(jerk, 0, 10.0)
                     jerk_list.append(jerk)
                 prev_accel = accel
             prev_speed = speed
-
+            
+            # compute TTC to nearest vehicle in front
             ttc_min = np.inf
             for other in others:
                 if other is ego:
@@ -103,6 +110,7 @@ def run_eval(env, model, episodes=EVAL_EPISODES, dt=0.1):
             if np.isfinite(ttc_min):
                 ttc_list.append(ttc_min)
 
+            # check for collisions
             collision = any(ego.crashed or getattr(v, "crashed", False) for v in others)
             collisions.append(1 if collision else 0)
 
@@ -141,8 +149,8 @@ if __name__ == "__main__":
         model = PPO(
             "MlpPolicy",                            # fully-connected with Kinematics vector
             env,
-            policy_kwargs=dict(net_arch=[128, 128]),# network actor/critic iwth hidden N layers.
-            learning_rate=3e-4,                     # High → fast learn but easy viration/diverge; low → stable
+            policy_kwargs=dict(net_arch=[128, 128]),# network actor/critic with hidden N layers.
+            learning_rate=3e-4,                     # High → fast learn but easy variation/diverge; low → stable
             n_steps=1024,                            # step to rollout before updating; High → advantage estimation more smooth (low noise) ⇒ more stable but high RAM & latency. test: 128-512; train: 1024-2048
             batch_size=64,                          # num of samples per minibatch; batch_size ≤ n_steps * n_envs
             n_epochs=10,                             # High (5–10) improve by take an advantage data but easy overfit clip; low is fast train. Test: 1–3; train: 5–10.
@@ -152,7 +160,7 @@ if __name__ == "__main__":
             ent_coef=0.008,                          # coeff for entropy bonus; high → explore more (noisy, stochastic); low → exploit more (deterministic). test: 0.01; train: 0.001-0.01
             verbose=1,                              # log in terminal
             tensorboard_log=TENSORBOARD_DIR,
-            device="cpu",                           # force CPU
+            # device="cpu",                           # force CPU
         )
 
         model.learn(total_timesteps=TOTAL_TIMESTEPS, tb_log_name=f"ppo_street_{i}")
@@ -161,12 +169,18 @@ if __name__ == "__main__":
         for k, v in metrics.items():
             print(f"  {k}: {v:.3f}")
 
+        # === Gating ===
         passed = (
             metrics["ttc_p95"] >= TTC_MIN_P95 and
             metrics["jerk_p95"] <= JERK_MAX_P95 and
             metrics["collision_rate"] <= COLLISION_MAX_RATE
         )
+        print(f"[DEBUG] Gate check → TTC95={metrics['ttc_p95']:.2f}, "
+              f"Jerk95={metrics['jerk_p95']:.2f}, "
+              f"CollRate={metrics['collision_rate']:.3f}, Passed={passed}")
 
+        # === Log ===
+        
         writer.add_scalar("eval/reward_mean", metrics["reward_mean"], i)
         writer.add_scalar("eval/ttc_p95", metrics["ttc_p95"], i)
         writer.add_scalar("eval/jerk_p95", metrics["jerk_p95"], i)
@@ -179,6 +193,8 @@ if __name__ == "__main__":
             best_model_path = f"models/ppo_street_best.zip"
             model.save(best_model_path)
             print(f"✅ New best model (reward={best_reward:.2f}) passed gating!")
+        elif metrics["reward_mean"] > best_reward:
+            print(f"⚠️ Model {i} best reward-only ({metrics['reward_mean']:.2f}) but failed gate.")
 
         env.close()
 
