@@ -12,7 +12,7 @@ import otw_env
 
 # === Config ===
 TOTAL_TIMESTEPS = 5e5  
-EVAL_EPISODES = 5        # episode evaluate
+EVAL_EPISODES = 1000        # episode evaluate
 N_MODELS = 5             
 TENSORBOARD_DIR = "logs/tensorboard"
 REPORT_FILE = "reports/summary_gating.csv"
@@ -26,7 +26,7 @@ COLLISION_MAX_RATE = 0.05
 def make_env(render_mode=None):
     env = gym.make("street-v1")
     env.unwrapped.configure({
-        "lanes_count": 2,
+        "lanes_count": 4,
         "vehicles_count": 10,
         "duration": 30,
         "simulation_frequency": 15,

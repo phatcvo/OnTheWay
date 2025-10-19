@@ -69,76 +69,75 @@ class StreetEnv(abstract.AbstractEnv):
                 self.road.vehicles.append(vehicle)
             # print(vehicle)
 
-    # The reward is defined to foster driving at high speed, on the rightmost lanes, and to avoid collisions.
-    
-    # def _reward(self, action: action.Action) -> float: # the last action performed
-    #     neighbors = self.road.network.all_side_lanes(self.vehicle.lane_index)
-    #     lane = self.vehicle.target_lane_index[2] if isinstance(self.vehicle, ControlledVehicle) else self.vehicle.lane_index[2]
-
-    #     forward_speed = self.vehicle.speed * np.cos(self.vehicle.heading)
-    #     scaled_speed = utils.lmap(forward_speed, self.config["reward_speed_range"], [0, 1])
-    #     lane_change = self.config["lane_change_reward"] * lane / max(len(neighbors) - 1, 1)
-    #     reward = \
-    #         + self.config["collision_reward"] * self.vehicle.crashed \
-    #         + self.config["right_lane_reward"] * lane / max(len(neighbors) - 1, 1) \
-    #         + self.config["high_speed_reward"] * np.clip(scaled_speed, 0, 1) \
-    #         + lane_change
-    #     reward = utils.lmap(reward, [self.config["collision_reward"], self.config["high_speed_reward"] + self.config["right_lane_reward"]], [0, 1])
-        
-    #     reward = 0 if not self.vehicle.on_road else reward 
-    #     return reward # the corresponding reward
-    def _reward(self, action: action.Action) -> float:
-        # === Update simulation time ===
-        self.sim_time += 1.0 / self.config.get("policy_frequency", 5.0)
-
-        # === Core reward terms ===
+    # The reward is defined to foster driving at high speed, on the rightmost lanes, and to avoid collisions.    
+    def _reward(self, action: action.Action) -> float: # the last action performed
         neighbors = self.road.network.all_side_lanes(self.vehicle.lane_index)
-        lane = (
-            self.vehicle.target_lane_index[2]
-            if isinstance(self.vehicle, ControlledVehicle)
-            else self.vehicle.lane_index[2]
-        )
+        lane = self.vehicle.target_lane_index[2] if isinstance(self.vehicle, ControlledVehicle) else self.vehicle.lane_index[2]
 
         forward_speed = self.vehicle.speed * np.cos(self.vehicle.heading)
         scaled_speed = utils.lmap(forward_speed, self.config["reward_speed_range"], [0, 1])
-        lane_change_term = self.config["lane_change_reward"] * lane / max(len(neighbors) - 1, 1)
+        lane_change = self.config["lane_change_reward"] * lane / max(len(neighbors) - 1, 1)
+        reward = \
+            + self.config["collision_reward"] * self.vehicle.crashed \
+            + self.config["right_lane_reward"] * lane / max(len(neighbors) - 1, 1) \
+            + self.config["high_speed_reward"] * np.clip(scaled_speed, 0, 1) \
+            + lane_change
+        reward = utils.lmap(reward, [self.config["collision_reward"], self.config["high_speed_reward"] + self.config["right_lane_reward"]], [0, 1])
+        
+        reward = 0 if not self.vehicle.on_road else reward 
+        return reward # the corresponding reward
+    # def _reward(self, action: action.Action) -> float:
+    #     # === Update simulation time ===
+    #     self.sim_time += 1.0 / self.config.get("policy_frequency", 5.0)
 
-        reward = (
-            + self.config["collision_reward"] * self.vehicle.crashed
-            + self.config["right_lane_reward"] * lane / max(len(neighbors) - 1, 1)
-            + self.config["high_speed_reward"] * np.clip(scaled_speed, 0, 1)
-            + lane_change_term
-        )
+    #     # === Core reward terms ===
+    #     neighbors = self.road.network.all_side_lanes(self.vehicle.lane_index)
+    #     lane = (
+    #         self.vehicle.target_lane_index[2]
+    #         if isinstance(self.vehicle, ControlledVehicle)
+    #         else self.vehicle.lane_index[2]
+    #     )
 
-        # Normalize reward range [collision_reward → high_speed_reward + right_lane_reward]
-        reward = utils.lmap(
-            reward,
-            [self.config["collision_reward"], self.config["high_speed_reward"] + self.config["right_lane_reward"]],
-            [0, 1],
-        )
+    #     forward_speed = self.vehicle.speed * np.cos(self.vehicle.heading)
+    #     scaled_speed = utils.lmap(forward_speed, self.config["reward_speed_range"], [0, 1])
+    #     lane_change_term = self.config["lane_change_reward"] * lane / max(len(neighbors) - 1, 1)
 
-        # === Lane change cooldown penalty ===
-        # 1. Detect if ego changed lane
-        current_lane = self.vehicle.lane_index[2]
-        if current_lane != getattr(self, "_prev_lane", current_lane):
-            self.last_lane_change_time = getattr(self, "sim_time", 0.0)
-        self._prev_lane = current_lane
+    #     reward = (
+    #         + self.config["collision_reward"] * self.vehicle.crashed
+    #         + self.config["right_lane_reward"] * lane / max(len(neighbors) - 1, 1)
+    #         + self.config["high_speed_reward"] * np.clip(scaled_speed, 0, 1)
+    #         + lane_change_term
+    #     )
 
-        # 2. Check if cooldown period active
-        time_since_change = getattr(self, "sim_time", 0.0) - getattr(self, "last_lane_change_time", -np.inf)
-        on_cooldown = time_since_change < self.config.get("lane_change_cooldown", 30.0)
+    #     # Normalize reward range [collision_reward → high_speed_reward + right_lane_reward]
+    #     reward = utils.lmap(
+    #         reward,
+    #         [self.config["collision_reward"], self.config["high_speed_reward"] + self.config["right_lane_reward"]],
+    #         [0, 1],
+    #     )
 
-        # 3. Penalize if ego tries to change lane again within cooldown
-        if on_cooldown and current_lane != getattr(self, "_last_valid_lane", current_lane):
-            reward += self.config.get("lane_change_penalty", -1.0)
-        else:
-            self._last_valid_lane = current_lane
+    #     # === Lane change cooldown penalty ===
+    #     # 1. Detect if ego changed lane
+    #     current_lane = self.vehicle.lane_index[2]
+    #     if current_lane != getattr(self, "_prev_lane", current_lane):
+    #         self.last_lane_change_time = getattr(self, "sim_time", 0.0)
+    #     self._prev_lane = current_lane
 
-        # === Final adjustments ===
-        if not self.vehicle.on_road:
-            reward = 0.0
+    #     # 2. Check if cooldown period active
+    #     time_since_change = getattr(self, "sim_time", 0.0) - getattr(self, "last_lane_change_time", -np.inf)
+    #     on_cooldown = time_since_change < self.config.get("lane_change_cooldown", 2.0)
 
-        return float(np.clip(reward, -1.0, 1.0))
+    #     # 3. Penalize if ego tries to change lane again within cooldown
+    #     if on_cooldown and current_lane != getattr(self, "_last_valid_lane", current_lane):
+    #         reward += self.config.get("lane_change_penalty", -1.0)
+    #     else:
+    #         self._last_valid_lane = current_lane
+
+    #     # === Final adjustments ===
+    #     if not self.vehicle.on_road:
+    #         reward = 0.0
+
+    #     return float(np.clip(reward, -1.0, 1.0))
 
 
     # The episode is over if the ego vehicle crashed or the time is out

@@ -12,7 +12,7 @@ import warnings
 def make_env(render_mode=None):
     env = gym.make("street-v1", render_mode=render_mode)
     env.unwrapped.configure({
-        "lanes_count": 4,
+        "lanes_count": 2,
         "vehicles_count": 10,
         "duration": 30,
         "simulation_frequency": 15,
